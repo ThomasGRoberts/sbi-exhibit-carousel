@@ -112,8 +112,26 @@ async function deck(current, version) {
   fullButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5m0 8v5h-5M8 21H3v-5"></path></svg>';
   toolbar.append(back, fullButton);
   const stage = element("div", "preview-stage");
-  const heading = element("h1", "exhibit-heading", "Exhibit " +
-    String(exhibit.number).padStart(2, "0") + ": " + exhibit.title);
+  const switcher = element("div", "exhibit-switcher");
+  const switcherCue = element("span", "exhibit-switcher-cue", "Click to choose exhibit");
+  const heading = element("h1", "exhibit-heading");
+  const exhibitSelect = element("select", "exhibit-select");
+  exhibitSelect.setAttribute("aria-label", "Jump to exhibit");
+  for (const item of exhibits) {
+    const option = element("option", "", "Exhibit " +
+      String(item.number).padStart(2, "0") + ": " + item.title);
+    option.value = item.id;
+    exhibitSelect.append(option);
+  }
+  exhibitSelect.value = exhibit.id;
+  exhibitSelect.addEventListener("change", () => {
+    const selected = exhibits.find(item => item.id === exhibitSelect.value);
+    if (selected && selected.id !== exhibit.id) location.hash = exhibitHref(selected);
+  });
+  heading.append(exhibitSelect);
+  heading.insertAdjacentHTML("beforeend",
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>');
+  switcher.append(switcherCue, heading);
   const feedback = element("div", "feedback-controls");
   const paneControl = element("div", "pane-control");
   const stateLabel = element("button", "pane-id");
@@ -136,7 +154,7 @@ async function deck(current, version) {
   let copyTimer;
   const previewMeta = element("div", "preview-meta");
   feedback.append(paneControl, commentLog);
-  previewMeta.append(heading, feedback);
+  previewMeta.append(switcher, feedback);
   stage.append(previewMeta);
   function showState(index) {
     const name = exhibit.states[index];

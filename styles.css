@@ -506,3 +506,26 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 .dashboard { display:flex;align-items:center; }
 .sequence-list { margin-top:0; }
 .pane-id { align-items:center; }
+
+.exhibit-switcher { display:flex;flex-direction:column;align-items:flex-start;
+  gap:3px;min-width:0; }
+.exhibit-switcher-cue { color:#999;font:400 10px/1 Roboto,Arial,sans-serif; }
+.exhibit-heading { position:relative;width:max-content;
+  max-width:min(460px,calc(100vw - 28px)); }
+.exhibit-select { display:block;appearance:none;width:max-content;max-width:100%;height:31px;
+  padding:0 22px 0 0;border:0;border-bottom:1px solid transparent;
+  border-radius:0;background:transparent;color:#4b5052;
+  font:500 14px/1.3 Roboto,"Helvetica Neue",Arial,sans-serif;
+  cursor:pointer;white-space:nowrap; }
+.exhibit-select:hover,.exhibit-select:focus-visible { border-bottom-color:#c4b17a; }
+.exhibit-heading svg { position:absolute;right:1px;top:9px;width:13px;height:13px;
+  fill:none;stroke:#8b8b8b;stroke-width:1.6;stroke-linecap:round;
+  stroke-linejoin:round;pointer-events:none;
+  transition:transform .18s ease; }
+.exhibit-heading:hover svg,.exhibit-heading:focus-within svg { transform:translateY(2px); }
+@media (max-width:700px) {
+  .exhibit-switcher,.exhibit-heading { width:100%; }
+  .exhibit-select { width:100%;font-size:11px;height:25px; }
+  .exhibit-switcher-cue { font-size:8px; }
+  .exhibit-heading svg { top:6px; }
+}
