@@ -502,3 +502,7 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 @media (prefers-reduced-motion:reduce) {
   .external-link-icon__arrow,.external-link-icon__box { transition:none; }
 }
+
+.dashboard { display:flex;align-items:center; }
+.sequence-list { margin-top:0; }
+.pane-id { align-items:center; }
