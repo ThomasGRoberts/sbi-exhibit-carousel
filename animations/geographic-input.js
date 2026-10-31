@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { createCameraEditor } from "./camera-editor.js";
 import {
   makeEarth, makeRegion, circleTexture, fibonacciShell,
   makeSampling, selectCellsWithinBoundary, latLonVector
@@ -149,7 +148,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   let transition={from:copyVisual(current),to:copyVisual(states[0]),
     fromIndex:-1,toIndex:0,elapsed:0,duration:2750};
   let paused=true,destroyed=false,raf=0,lastFrame=0,waveSeconds=0,lastCoverageAt=0;
-  let editor=null;
   let currentLookTarget=new THREE.Vector3();
   const simulationSeconds=[0,0];
   const goldRadii=[5.7,5.7],goldSizes=[64,64],sweepSeconds=[4.4,3.8];
@@ -174,7 +172,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     camera.zoom=mix(1,NORTH_ATLANTIC_HORIZON.zoom,h);
     currentLookTarget=new THREE.Vector3(...NORTH_ATLANTIC_HORIZON.target);
     camera.updateProjectionMatrix();camera.updateMatrixWorld();
-    if(editor?.active)editor.apply();
     regions.forEach((region,index)=>{
       const fill=current.fill[index],line=current.line[index];
       region.group.visible=fill>.001||line>.001;
@@ -326,7 +323,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   }
   function goToState(index) {
     if(destroyed||index<0||index>=STATE_COUNT||index===stateIndex) return false;
-    editor?.close();
     const previous=stateIndex;
     stateIndex=index;
     if([1,2,5,6].includes(index)) waveSeconds=0;
@@ -404,9 +400,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   }
   const observer=new ResizeObserver(resize);
   observer.observe(host);
-  editor=createCameraEditor({host,camera,root,renderer,draw,jumpToState,
-    regionNormals:Object.fromEntries(keys.map((key,index)=>
-      [key,latLonVector(...views[index].center).toArray()]))});
   host.dataset.stage="1";
   host.dataset.targetCount=String(modelData.small.targetIndices.length);
   host.dataset.satelliteCount=String(constellations[0].satelliteCount);
@@ -417,7 +410,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     getStateIndex:()=>stateIndex,
     goToState,jumpToState,
     isTransitioning:()=>Boolean(transition),
-    isEditingCamera:()=>Boolean(editor?.active),
     next:()=>goToState(stateIndex+1),
     previous:()=>goToState(stateIndex-1),
     start(){if(destroyed||document.hidden)return;paused=false;schedule();},
@@ -435,7 +427,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     destroy(){
       if(destroyed)return;
       destroyed=true;paused=true;cancelAnimationFrame(raf);observer.disconnect();
-      editor?.destroy();
       scene.traverse(object=>{
         object.geometry?.dispose();
         const materials=Array.isArray(object.material)?object.material:[object.material];

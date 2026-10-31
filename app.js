@@ -194,7 +194,7 @@ async function deck(current, version) {
   pane.append(host, logo);
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
-  navigationHint.innerHTML = '<span><kbd>Space</kbd> or <span class="mouse-symbol" aria-hidden="true">◯</span> click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
+  navigationHint.innerHTML = '<span><kbd>Space</kbd> or click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
   stage.append(navigationHint);
   const error = element("p", "preview-error");
   error.hidden = true;
@@ -211,7 +211,7 @@ async function deck(current, version) {
   main.showDisplayMode = applyDisplayMode;
   fullButton.addEventListener("click", () => toggleFullscreen(main));
   pane.addEventListener("click", event => {
-    if (event.button !== 0 || event.detail > 1 || activeExhibit?.isEditingCamera?.()) return;
+    if (event.button !== 0 || event.detail > 1) return;
     navigateExhibit(1);
   });
   applyDisplayMode();
