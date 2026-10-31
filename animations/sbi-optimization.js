@@ -108,7 +108,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   host.append(renderer.domElement);
   const overlay=document.createElement("canvas");overlay.className="optimization-overlay";
   host.append(overlay);const ctx=overlay.getContext("2d");
-  const note=document.createElement("div");note.className="optimization-note";host.append(note);
   let width=1,height=1,ratio=1,stage=0,elapsed=0,clock=0,scenarioAge=0;
   let walkerAge=0,layout=0,paused=true,destroyed=false,raf=0,last=0;
   const reachCos=Math.cos(baseline.criterion.reachDeg*RAD);
@@ -173,11 +172,11 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     ctx.globalAlpha=alpha;ctx.textAlign="center";
     ctx.fillStyle="#74652f";
     ctx.font="600 17px Roboto,'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText("Repeating Ground Track Optimization",width*.26,height*.135);
-    ctx.fillText("Symmetric Walker Delta",width*.74,height*.135);
+    ctx.fillText("Repeating Ground Track Optimization",width*.26,height*.21);
+    ctx.fillText("Symmetric Walker Delta",width*.74,height*.21);
     ctx.fillStyle="#666";ctx.font="400 12px Roboto,'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText(`${selected.length} satellites`,width*.26,height*.172);
-    ctx.fillText(`${walker.length} satellites`,width*.74,height*.172);
+    ctx.fillText(`${selected.length} satellites`,width*.26,height*.247);
+    ctx.fillText(`${walker.length} satellites`,width*.74,height*.247);
     ctx.globalAlpha=1;ctx.textAlign="left";
   }
   function render() {
@@ -188,6 +187,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     left.earth.rotation.y=right.earth.rotation.y=OMEGA*clock;
     left.root.position.x=-1.85*layout;
     right.root.position.x=3.8-1.95*layout;
+    const comparisonShift=stage===2?ease(elapsed/.65):0;
+    left.root.position.y=right.root.position.y=-.32*comparisonShift;
     right.root.visible=stage>=1;
     updateGeography();
     const selectedShown=Math.floor(selected.length*
@@ -205,10 +206,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     camera.updateMatrixWorld();
     renderer.render(scene,camera);
     drawOverlay();
-    note.textContent=stage===0?
-      (scenarioAge<5.2?"Iran · 2 sites · salvo 2 · 45 s detection · 4.0 km/s":
-        `Recorded RGT constellation · ${selected.length} selected satellites`):
-      "Walker baseline checks geometric reach only; interceptor timing is not evaluated";
     host.dataset.stage=String(stage+1);
     host.dataset.selectedShown=String(selectedShown);
     host.dataset.walkerShown=String(walkerShown);

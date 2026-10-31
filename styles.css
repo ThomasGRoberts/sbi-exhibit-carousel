@@ -390,9 +390,6 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 .intercept-overlay { position:absolute;inset:0;pointer-events:none; }
 .threat-zoom .iran-site-core { transform-box:fill-box;transform-origin:center;transform:scale(.32); }
 .optimization-overlay { position:absolute; inset:0; pointer-events:none; }
-.optimization-note { position:absolute; z-index:4; left:3%; bottom:3%;
-  max-width:70%; color:#606060; background:#ffffffd4; padding:5px 7px;
-  font:550 11px/1.35 Roboto,Arial,sans-serif; pointer-events:none; }
 
 /* Compact agenda and ESPL development controls. */
 .sequence-list { margin-top:clamp(16px,4vh,48px); }
