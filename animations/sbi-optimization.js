@@ -171,11 +171,11 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(!ready)return;
     const alpha=ease(elapsed/.65);
     ctx.globalAlpha=alpha;ctx.textAlign="center";
-    ctx.fillStyle="#414141";
-    ctx.font="500 19px Georgia,serif";
+    ctx.fillStyle="#74652f";
+    ctx.font="600 17px Roboto,'Helvetica Neue',Arial,sans-serif";
     ctx.fillText("Repeating Ground Track Optimization",width*.26,height*.135);
     ctx.fillText("Symmetric Walker Delta",width*.74,height*.135);
-    ctx.fillStyle="#777";ctx.font="400 12px Roboto,Arial,sans-serif";
+    ctx.fillStyle="#666";ctx.font="400 12px Roboto,'Helvetica Neue',Arial,sans-serif";
     ctx.fillText(`${selected.length} satellites`,width*.26,height*.172);
     ctx.fillText(`${walker.length} satellites`,width*.74,height*.172);
     ctx.globalAlpha=1;ctx.textAlign="left";
