@@ -1,0 +1,71 @@
+{
+  "method": "Restricted Walker Delta T/P/1 sweep; sampled geometric reach only",
+  "sourceRun": "PREp-s002-d45-v4-g10-b170-k0-i1-261011a-a891",
+  "sourceCommit": "059f92436212d472a30234e0a276e9c0bc2d23e2",
+  "planesTested": [
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36,
+    40,
+    48,
+    56,
+    64
+  ],
+  "architecturesTested": 508,
+  "chosen": {
+    "satellites": 848,
+    "planes": 8,
+    "satellitesPerPlane": 106,
+    "phasing": 1,
+    "inclinationDeg": 36.20108979,
+    "altitudeKm": 282.1624062833098,
+    "raanRateRadS": -1.3958686531932018e-06,
+    "argRateRadS": 1.951082266217733e-06,
+    "meanMotionRadS": 0.0011615241892908917
+  },
+  "criterion": {
+    "targetNames": [
+      "Imam Khomeini Spaceport",
+      "Shahroud Missile Test Site"
+    ],
+    "reachDeg": 3.5519807699788757,
+    "requiredSimultaneousSatellites": 2,
+    "sampleIntervalSeconds": 119.97972472849037,
+    "sampleCount": 2114,
+    "horizonSeconds": 253517.15835130014,
+    "usesJ2SecularRates": true
+  },
+  "checks": [
+    {
+      "name": "Imam Khomeini Spaceport",
+      "minimum": 2,
+      "mean": 2.763008514664144,
+      "maximum": 5,
+      "failingSamples": 0
+    },
+    {
+      "name": "Shahroud Missile Test Site",
+      "minimum": 2,
+      "mean": 2.403027436140019,
+      "maximum": 4,
+      "failingSamples": 0
+    }
+  ],
+  "halfStepValidation": {
+    "intervalSeconds": 60,
+    "sampleCount": 4227,
+    "minimumByTarget": [
+      2,
+      2
+    ]
+  },
+  "rgtSatellites": 613,
+  "difference": 235,
+  "rgtReductionRelativeToBaselinePercent": 27.712264150943394,
+  "limitation": "The Walker test uses the recorded reach angle and two-fold target count, but does not rerun the optimizer's interceptor timing/feasibility matrix. The result is the best of this restricted T/P/1 sweep, not a globally optimized Walker constellation or a fully matched defense result."
+}
