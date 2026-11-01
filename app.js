@@ -18,7 +18,23 @@ let launchMode = "full";
 let lastFullscreenExit = -Infinity;
 const moduleSession = Date.now().toString(36);
 const selectionKey = "sbi-exhibit-carousel-selection-v2";
+const modelSessionKey = "sbi-carousel-live-model-session-v1";
+const liveModelUrl = "https://thomasgroberts.github.io/sbi-constellation-viz/";
 const commentLogUrl = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
+let modelContext = null;
+try {
+  const stored = JSON.parse(sessionStorage.getItem(modelSessionKey) || "null");
+  if (stored && typeof stored.token === "string" &&
+      typeof stored.launchStepId === "string" &&
+      typeof stored.nextStepId === "string" &&
+      Array.isArray(stored.selectedExhibitIds) &&
+      Array.isArray(stored.titleConfiguration?.slides)) modelContext = stored;
+}
+catch (error) { console.warn("Model return position could not be restored.", error); }
+let modelLoadTimer = 0;
+let paneToastTimer = 0;
+let pendingFullscreenRestore = false;
+let modelReturnInFlight = false;
 let titleConfiguration = loadTitleConfiguration();
 titleConfiguration.enabled = true;
 const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds,
@@ -46,6 +62,7 @@ function element(tag, className = "", text = "") {
 
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (parts[0] === "model" && modelContext) return {page:"model"};
   if (parts[0] === "configurations") return {page:"index", showConfig:true};
   if (parts[0] === "present") {
     const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
@@ -69,6 +86,21 @@ function route() {
 }
 
 function stepHref(step) { return "#/present/" + encodeURIComponent(step.id); }
+function logicalPaneId(step) {
+  if (!step) return "";
+  if (step.kind === "title") return step.paneId;
+  const first = stateId(step.exhibit, step.start);
+  return step.start === step.end ? first : first + "–" + stateId(step.exhibit, step.end);
+}
+function showPaneToast(step, force = false) {
+  clearTimeout(paneToastTimer);
+  const toast = app.querySelector(".pane-id-toast");
+  if (!toast || !step || (!force && displayMode !== "presentation")) return;
+  toast.textContent = logicalPaneId(step);
+  toast.classList.remove("is-visible");
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+  paneToastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2600);
+}
 function updateViewportAspect() {
   const width = document.fullscreenElement === app ? app.clientWidth : window.innerWidth;
   const height = document.fullscreenElement === app ? app.clientHeight : window.innerHeight;
@@ -218,6 +250,85 @@ function exhibitIndex(current) {
   main.append(mark);
   replaceView(main);
   if (current?.showConfig) comment.click();
+}
+
+function enterLiveModel() {
+  const current = route();
+  const sequence = steps();
+  const position = sequence.findIndex(step => step.id === current.step?.id);
+  const next = sequence[position + 1];
+  if (position < 0 || !next) return;
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte =>
+    byte.toString(16).padStart(2, "0")).join("");
+  modelContext = {
+    token, launchStepId:current.step.id, nextStepId:next.id,
+    launchMode, selectedExhibitIds:[...selectedExhibitIds],
+    titleConfiguration:structuredClone(titleConfiguration),
+    displayMode, fullscreen:document.fullscreenElement === app
+  };
+  try { sessionStorage.setItem(modelSessionKey, JSON.stringify(modelContext)); }
+  catch (error) { console.warn("Model return position could not be saved.", error); }
+  modelReturnInFlight = false;
+  location.hash = "#/model";
+}
+
+function returnFromLiveModel() {
+  if (modelReturnInFlight || !modelContext || route().page !== "model") return;
+  modelReturnInFlight = true;
+  const context = modelContext;
+  launchMode = context.launchMode === "exhibits" ? "exhibits" : "full";
+  selectedExhibitIds = new Set(context.selectedExhibitIds.filter(id =>
+    exhibits.some(exhibit => exhibit.id === id)));
+  titleConfiguration = context.titleConfiguration;
+  displayMode = document.fullscreenElement === app ? "presentation" : context.displayMode;
+  pendingFullscreenRestore = Boolean(context.fullscreen && document.fullscreenElement !== app);
+  const sequence = steps();
+  const next = sequence.find(step => step.id === context.nextStepId) ||
+    sequence[sequence.findIndex(step => step.id === context.launchStepId) + 1];
+  modelContext = null;
+  try { sessionStorage.removeItem(modelSessionKey); } catch { /* in-memory return still works */ }
+  if (next) location.hash = stepHref(next);
+  else location.hash = "#/";
+}
+
+function liveModelView() {
+  const main = element("main", "live-model-view");
+  main.setAttribute("aria-label", "Interactive SBI constellation model");
+  const frame = element("iframe", "live-model-frame");
+  frame.title = "Interactive SBI constellation model";
+  frame.allow = "fullscreen";
+  frame.setAttribute("allowfullscreen", "");
+  frame.referrerPolicy = "origin";
+  const url = new URL(liveModelUrl);
+  url.searchParams.set("presentation", "carousel");
+  url.searchParams.set("returnOrigin", location.origin);
+  url.searchParams.set("presentationToken", modelContext.token);
+  frame.src = url.href;
+  const status = element("div", "live-model-status", "Loading the interactive model…");
+  status.setAttribute("role", "status");
+  frame.addEventListener("load", clearTransition);
+  function scheduleLoadTimeout() {
+    clearTimeout(modelLoadTimer);
+    modelLoadTimer = setTimeout(() => {
+      if (route().page !== "model" || !main.isConnected || status.hidden) return;
+      status.textContent = "The interactive model is taking longer to load.";
+      const retry = element("button", "live-model-retry", "Retry");
+      retry.type = "button";
+      retry.addEventListener("click", () => {
+        status.textContent = "Loading the interactive model…";
+        frame.src = url.href + "&retry=" + Date.now();
+        scheduleLoadTimeout();
+      });
+      const back = element("button", "live-model-retry", "Return to presentation");
+      back.type = "button";
+      back.addEventListener("click", returnFromLiveModel);
+      status.append(retry, back);
+      clearTransition();
+    }, 20000);
+  }
+  scheduleLoadTimeout();
+  main.append(frame, status);
+  replaceView(main);
 }
 
 async function toggleFullscreen(main) {
@@ -370,7 +481,26 @@ async function deck(current, version) {
   logo.src = "assets/ESPL.png";
   logo.alt = "";
   logo.setAttribute("aria-hidden", "true");
-  pane.append(host, logo);
+  const paneToast = element("div", "pane-id-toast");
+  paneToast.setAttribute("aria-live", "polite");
+  paneToast.setAttribute("aria-atomic", "true");
+  pane.append(host, logo, paneToast);
+  if (pendingFullscreenRestore) {
+    const restore = element("button", "restore-fullscreen", "Restore full screen");
+    restore.type = "button";
+    restore.addEventListener("click", async event => {
+      event.stopPropagation();
+      try {
+        await app.requestFullscreen();
+        pendingFullscreenRestore = false;
+        restore.remove();
+      } catch (error) {
+        restore.textContent = "Full screen unavailable — press F to retry";
+        console.warn("Full screen could not be restored automatically.", error);
+      }
+    });
+    pane.append(restore);
+  }
   if (isTitle) {
     pane.classList.add("title-visualization");
     if (slide.id === "results") pane.classList.add("visual-invitation");
@@ -401,7 +531,7 @@ async function deck(current, version) {
     }
     if (current.step.action === "model") {
       main.disposeModelLink = createModelLink(host, {
-        variant:"small", alwaysOpen:true, onActivate:() => navigateExhibit(1)
+        variant:"small", alwaysOpen:true, onActivate:enterLiveModel
       });
     }
     if (editTextButton) {
@@ -481,7 +611,10 @@ async function deck(current, version) {
         ambient.start();
       } catch (problem) { console.error("Dormant background could not start", problem); }
     }
-    requestAnimationFrame(() => requestAnimationFrame(clearTransition));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      clearTransition();
+      showPaneToast(current.step);
+    }));
     return;
   }
 
@@ -507,7 +640,10 @@ async function deck(current, version) {
       startAtEnd ? current.step.end :
         current.step.panes.includes(requestedState) ? requestedState : current.step.start);
     pane.classList.add("is-ready");
-    requestAnimationFrame(() => requestAnimationFrame(clearTransition));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      clearTransition();
+      showPaneToast(current.step);
+    }));
   } catch (problem) {
     if (version !== routeVersion) return;
     console.error(problem);
@@ -520,12 +656,17 @@ async function deck(current, version) {
 function render() {
   routeVersion += 1;
   cancelPhases();
+  clearTimeout(modelLoadTimer);
+  clearTimeout(paneToastTimer);
   const current = route();
   if (current.page !== "index" && app.firstElementChild) showTransition();
   app.querySelector(".deck")?.disposeModelLink?.();
   activeExhibit?.destroy();
   activeExhibit = null;
-  if (current.page === "exhibit") {
+  if (current.page === "model") {
+    activeStep = null;
+    liveModelView();
+  } else if (current.page === "exhibit") {
     deck(current, routeVersion);
   } else if (current.page === "title") {
     activeStep = current.step;
@@ -556,15 +697,33 @@ function navigateExhibit(direction) {
     if (direction < 0) activeExhibit.jumpToState?.(next.end);
     else activeExhibit.goToState?.(next.start);
     history.replaceState(null, "", stepHref(next));
+    showPaneToast(next);
     if (direction > 0) startStepPhases(next);
   } else location.hash = stepHref(next);
 }
 
 window.addEventListener("hashchange", render);
+window.addEventListener("message", event => {
+  if (route().page !== "model" || !modelContext ||
+      event.origin !== new URL(liveModelUrl).origin ||
+      event.source !== app.querySelector(".live-model-frame")?.contentWindow ||
+      event.data?.token !== modelContext.token) return;
+  if (event.data.type === "sbi-carousel:ready") {
+    clearTimeout(modelLoadTimer);
+    const status = app.querySelector(".live-model-status");
+    if (status) status.hidden = true;
+    clearTransition();
+  } else if (event.data.type === "sbi-carousel:return") returnFromLiveModel();
+});
 document.addEventListener("fullscreenchange", () => {
   displayMode = document.fullscreenElement === app ? "presentation" : "preview";
   if (displayMode === "preview") lastFullscreenExit = performance.now();
   app.querySelector(".deck")?.showDisplayMode();
+  if (document.fullscreenElement === app) {
+    pendingFullscreenRestore = false;
+    app.querySelector(".restore-fullscreen")?.remove();
+    showPaneToast(activeStep || route().step);
+  }
   requestAnimationFrame(updateViewportAspect);
 });
 window.addEventListener("resize", updateViewportAspect);
@@ -576,8 +735,12 @@ window.addEventListener("keydown", event => {
   if (event.target.closest?.("input, textarea, select")) return;
   const current = route();
   if (!["exhibit","title"].includes(current.page) ||
-    !["Space", "ArrowRight", "ArrowLeft", "Escape", "KeyF"].includes(event.code)) return;
+    !["Space", "ArrowRight", "ArrowLeft", "Escape", "KeyF", "KeyI"].includes(event.code)) return;
   event.preventDefault();
+  if (event.code === "KeyI") {
+    showPaneToast(activeStep || current.step, true);
+    return;
+  }
   if (event.code === "Escape") {
     if (document.fullscreenElement) document.exitFullscreen();
     else if (performance.now() - lastFullscreenExit < 250) return;

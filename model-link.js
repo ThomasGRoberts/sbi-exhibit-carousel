@@ -13,7 +13,10 @@ export function createModelLink(container, { variant = "small", onActivate,
   link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the Interactive Model&nbsp; →</span>';
   link.addEventListener("click", event => {
     event.stopPropagation();
-    onActivate?.();
+    if (onActivate) {
+      event.preventDefault();
+      onActivate();
+    }
   });
   container.append(link);
 

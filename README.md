@@ -1,6 +1,6 @@
 # Geneva Briefings Carousel Animations
 
-Seven presenter-controlled ESPL exhibits: four for Fernando and three for Nathan O'Brien. The agenda names both presenters beside their photos. The sibling research projects were used as read-only design, model, and data references.
+Seven presenter-controlled ESPL exhibits: four for Fernando and three for Nathan O'Brien. The agenda names both presenters beside their photos. The principal SBI tool remains independently hosted and supplies the interactive model through a presentation-only return bridge.
 
 ## Preview and controls
 
@@ -8,7 +8,9 @@ From this directory run `python3 -m http.server 8878`, then open [the local prev
 
 The opening and model-invitation backgrounds render a subdued, animated view of the recorded Iran principal run with its launch sites, country outline, orbital planes, and J2-propagated satellites. They share scene geometry with the scientific exhibits rather than embedding the SBI app as an image.
 
-Space, Right Arrow, or a click inside a pane advances one logical presentation step. Left Arrow returns to the previous step, including across exhibit boundaries. Combined sequences play their internal panes automatically. Title slides use the same deck controls as exhibits, including copyable stable pane IDs and the Comment Log. **Edit text** opens live fields for titles, subtitles, and agenda items; these edits appear in the configuration export. In the preview header, click the exhibit title to choose any included exhibit. Direct links work, for example `http://localhost:8878/#/exhibit/geographic-input/02.04`. The visual model invitation has the regular bottom-left model shortcut; clicking it opens the live SBI model in a new tab and advances the carousel to “The Established Approach.”
+Space, Right Arrow, or a click inside a pane advances one logical presentation step. Left Arrow returns to the previous step, including across exhibit boundaries. Combined sequences play their internal panes automatically. Title slides use the same deck controls as exhibits, including copyable stable pane IDs and the Comment Log. **Edit text** opens live fields for titles, subtitles, and agenda items; these edits appear in the configuration export. In the preview header, click the exhibit title to choose any included exhibit. Direct links work, for example `http://localhost:8878/#/exhibit/geographic-input/02.04`. In fullscreen, the logical pane ID appears briefly on every step; press **I** to reveal it again.
+
+The visual model invitation's bottom-left control opens the actual GitHub-hosted SBI tool inside the presentation viewport. The tool uses its normal interactions and 45-second idle carousel. In this explicit embedded context only, its upper-right polyhedron says **Back to Presentation**; that action resumes at the next logical slide. The carousel stores the launching step, return step, title mode, exhibit selection, and fullscreen state for the session. If browser restrictions end fullscreen while the tool is open, a **Restore full screen** control appears on return.
 
 Pane IDs and internal names live in `manifest.js`. Logical steps, title slides, and phase timings live in `presentation-sequence.js`. Shared palette and launch-site gold come from `animations/sbi-style.js`. All exhibits remain drafts. This is a static site with no build step; GitHub Pages can serve the repository root when the owner enables it.
 
