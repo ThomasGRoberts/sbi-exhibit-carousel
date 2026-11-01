@@ -257,13 +257,13 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(paused||destroyed)return;
     const delta=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
     elapsed+=delta;
-    cameraBlend=clamp(cameraBlend+(stage===1?1:-1)*delta/1.4);
-    if(transition<1)transition=Math.min(1,transition+delta/(reduced?.01:1.4));
+    cameraBlend=clamp(cameraBlend+(stage===1?1:-1)*delta/1.27);
+    if(transition<1)transition=Math.min(1,transition+delta/(reduced?.01:1.27));
     if(stage<2)ordinaryTime=Math.min(ordinary.period*(stage===0?.84:3.9),
-      ordinaryTime+(stage===1?300:1100)*delta);
+      ordinaryTime+(stage===1?330:1210)*delta);
     else repeatTime=Math.min(repeating.period*(stage===2?1:stage===3||stage===4?2:
       stage===6?3.16:3),
-      repeatTime+7200*delta);
+      repeatTime+7920*delta);
     render();raf=requestAnimationFrame(frame);
   }
   function goToState(index){

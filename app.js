@@ -41,6 +41,7 @@ function element(tag, className = "", text = "") {
 
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (parts[0] === "configurations") return {page:"index", showConfig:true};
   if (parts[0] === "present") {
     const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
     if (step?.kind === "title") return {page:"title", step};
@@ -149,7 +150,7 @@ function exhibitRow(exhibit) {
   return row;
 }
 
-function exhibitIndex() {
+function exhibitIndex(current) {
   const main = element("main", "dashboard");
   main.style.setProperty("--exhibit-count", String(Math.max(1, exhibits.length)));
   const content = element("div", "dashboard-content");
@@ -203,6 +204,7 @@ function exhibitIndex() {
   mark.src = "assets/ESPL.png"; mark.alt = ""; mark.setAttribute("aria-hidden", "true");
   main.append(mark);
   replaceView(main);
+  if (current?.showConfig) configTab.click();
 }
 
 async function toggleFullscreen(main) {
@@ -227,61 +229,32 @@ async function toggleFullscreen(main) {
   main.showDisplayMode();
 }
 
-function titleSlide(step) {
-  const { slide } = step;
-  const main = element("main", "title-slide");
-  const toolbar = element("div", "preview-toolbar");
-  const back = makeBackLink("#/");
-  const fullButton = element("button", "fullscreen-button");
-  fullButton.type = "button";
-  fullButton.setAttribute("aria-label", "Toggle full screen");
-  fullButton.textContent = "⛶";
-  toolbar.append(back, fullButton);
-  const frame = element("section", "title-frame");
-  const banner = element("div", "title-banner");
-  const block = element("div", "title-block");
-  block.append(element("h1", "", slide.title));
-  if (slide.subtitle) block.append(element("p", "title-subtitle", slide.subtitle));
-  if (slide.type === "agenda") {
-    const list = element("ol", "title-agenda");
-    (slide.agenda || []).forEach((item, index) => {
-      const row = element("li", index === slide.highlight ? "is-highlighted" : "", item);
-      list.append(row);
-    });
-    block.append(list);
-  }
-  frame.append(banner, block);
-  if (slide.action === "model") {
-    main.disposeModelLink = createModelLink(frame);
-    frame.querySelector(".model-link")?.classList.add("is-arrived");
-  }
-  const hint = element("div", "title-navigation-hint", "Space or → next     ← previous");
-  main.append(toolbar,frame,hint);
-  replaceView(main);
-  main.showDisplayMode = () =>
-    main.classList.toggle("is-presenting", displayMode === "presentation");
-  main.showDisplayMode();
-  fullButton.addEventListener("click", () => toggleFullscreen(main));
-  frame.addEventListener("click", event => {
-    if (!event.target.closest("a,button") && event.button === 0) navigateExhibit(1);
-  });
-  requestAnimationFrame(() => requestAnimationFrame(clearTransition));
-}
-
 async function deck(current, version) {
-  const { exhibit, startAtEnd, requestedState } = current;
+  const isTitle = current.page === "title";
+  const slide = isTitle ? current.step.slide : null;
+  const exhibit = isTitle ?
+    exhibits.find(item => item.id === slide.before) || exhibits[0] : current.exhibit;
+  const { startAtEnd, requestedState } = current;
   const main = element("main", "deck");
-  main.setAttribute("aria-label", "Exhibit " + String(exhibit.number).padStart(2, "0") +
-    ": " + exhibit.title);
+  main.dataset.stepId = current.step?.id || "";
+  main.setAttribute("aria-label", isTitle ? "Presentation title: " + slide.title :
+    "Exhibit " + String(exhibit.number).padStart(2, "0") + ": " + exhibit.title);
   const toolbar = element("div", "preview-toolbar");
   const back = makeBackLink("#/");
   const fullButton = element("button", "fullscreen-button");
   fullButton.type = "button";
   fullButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5m0 8v5h-5M8 21H3v-5"></path></svg>';
-  toolbar.append(back, fullButton);
+  const configButton = element("button", "configuration-button", "Configure");
+  configButton.type = "button";
+  configButton.addEventListener("click", () => { location.hash = "#/configurations"; });
+  const toolbarRight = element("div", "toolbar-right");
+  toolbarRight.append(configButton, fullButton);
+  toolbar.append(back, toolbarRight);
   const stage = element("div", "preview-stage");
   const switcher = element("div", "exhibit-switcher");
-  const switcherCue = element("span", "exhibit-switcher-cue", "Click to choose exhibit");
+  const switcherCue = element("span", "exhibit-switcher-cue",
+    isTitle ? "Presentation title · before Exhibit " +
+      String(exhibit.number).padStart(2,"0") : "Click to choose exhibit");
   const heading = element("h1", "exhibit-heading");
   const exhibitSelect = element("select", "exhibit-select");
   exhibitSelect.setAttribute("aria-label", "Jump to exhibit");
@@ -322,10 +295,18 @@ async function deck(current, version) {
   commentLog.rel = "noopener noreferrer";
   let copyTimer;
   const previewMeta = element("div", "preview-meta");
-  feedback.append(paneControl, commentLog);
+  const editTextButton = isTitle ? element("button", "title-edit-button", "Edit text") : null;
+  if (editTextButton) editTextButton.type = "button";
+  feedback.append(paneControl, ...(editTextButton ? [editTextButton] : []), commentLog);
   previewMeta.append(switcher, feedback);
   stage.append(previewMeta);
   function showState(index) {
+    if (isTitle) {
+      paneValue.textContent = current.step.paneId;
+      stateLabel.title = "Copy " + current.step.paneId + " · " + slide.title;
+      copied.classList.remove("is-visible");
+      return;
+    }
     const name = exhibit.states[index];
     if (name) {
       paneValue.textContent = stateId(exhibit, index);
@@ -354,15 +335,75 @@ async function deck(current, version) {
   });
   showState(0);
   const pane = element("section", "visualization-pane");
-  pane.setAttribute("aria-label", "Exhibit visualization");
+  pane.setAttribute("aria-label", isTitle ? "Presentation title" : "Exhibit visualization");
   const host = element("div", "animation-host");
   const logo = element("img", "presentation-logo");
   logo.src = "assets/ESPL.png";
   logo.alt = "";
   logo.setAttribute("aria-hidden", "true");
   pane.append(host, logo);
-  const disposeModelLink = createModelLink(pane);
-  main.disposeModelLink = disposeModelLink;
+  if (isTitle) {
+    pane.classList.add("title-visualization");
+    host.classList.add("title-stage");
+    const banner = element("div", "title-banner");
+    const block = element("div", "title-block");
+    const title = element("h1", "", slide.title);
+    const subtitle = element("p", "title-subtitle", slide.subtitle || "");
+    subtitle.hidden = !slide.subtitle;
+    block.append(title, subtitle);
+    const agendaRows = [];
+    if (slide.type === "agenda") {
+      const list = element("ol", "title-agenda");
+      (slide.agenda || []).forEach((item, index) => {
+        const row = element("li", index === slide.highlight ? "is-highlighted" : "", item);
+        agendaRows.push(row);
+        list.append(row);
+      });
+      block.append(list);
+    }
+    host.append(banner, block);
+    if (current.step.action === "model") {
+      main.disposeModelLink = createModelLink(host, {
+        variant:"transition", onActivate:() => navigateExhibit(1)
+      });
+    }
+    const editor = element("div", "title-inline-editor");
+    editor.hidden = true;
+    editor.append(element("h2", "", "Edit title slide"));
+    function saveSlide() {
+      try { localStorage.setItem(TITLE_STORAGE_KEY, JSON.stringify(titleConfiguration)); }
+      catch (error) { console.warn("Presentation titles could not be saved.", error); }
+      stateLabel.title = "Copy " + current.step.paneId + " · " + slide.title;
+    }
+    function addField(label, value, update) {
+      const wrapper = element("label", "title-edit-field");
+      wrapper.append(element("span", "", label));
+      const input = element("input");
+      input.type = "text";
+      input.value = value;
+      input.addEventListener("input", () => { update(input.value); saveSlide(); });
+      wrapper.append(input);
+      editor.append(wrapper);
+    }
+    addField("Main title", slide.title, value => {
+      slide.title = value; title.textContent = value;
+      main.setAttribute("aria-label", "Presentation title: " + value);
+    });
+    addField("Subtitle", slide.subtitle || "", value => {
+      slide.subtitle = value; subtitle.textContent = value; subtitle.hidden = !value;
+    });
+    agendaRows.forEach((row, index) => addField("Agenda item " + (index+1),
+      slide.agenda[index], value => { slide.agenda[index] = value; row.textContent = value; }));
+    const done = element("button", "editor-button", "Done");
+    done.type = "button";
+    done.addEventListener("click", () => { editor.hidden = true; editTextButton.focus(); });
+    editor.append(done);
+    stage.append(editor);
+    editTextButton.addEventListener("click", () => {
+      editor.hidden = !editor.hidden;
+      if (!editor.hidden) editor.querySelector("input")?.focus();
+    });
+  }
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
   navigationHint.innerHTML = '<span><kbd>Space</kbd> or click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
@@ -386,6 +427,14 @@ async function deck(current, version) {
     navigateExhibit(1);
   });
   applyDisplayMode();
+
+  if (isTitle) {
+    activeStep = current.step;
+    showState(0);
+    pane.classList.add("is-ready");
+    requestAnimationFrame(() => requestAnimationFrame(clearTransition));
+    return;
+  }
 
   try {
     // A route opened in a long-lived development tab must load the current
@@ -424,14 +473,14 @@ function render() {
   cancelPhases();
   const current = route();
   if (current.page !== "index" && app.firstElementChild) showTransition();
-  app.querySelector(".deck, .title-slide")?.disposeModelLink?.();
+  app.querySelector(".deck")?.disposeModelLink?.();
   activeExhibit?.destroy();
   activeExhibit = null;
   if (current.page === "exhibit") {
     deck(current, routeVersion);
   } else if (current.page === "title") {
     activeStep = current.step;
-    titleSlide(current.step);
+    deck(current, routeVersion);
   } else {
     activeStep = null;
     if (document.fullscreenElement === app) document.exitFullscreen().catch(console.warn);
@@ -453,6 +502,7 @@ function navigateExhibit(direction) {
   if (next.kind === "exhibit" && current.page === "exhibit" &&
       next.exhibit.id === current.exhibit.id && activeExhibit) {
     activeStep = next;
+    app.querySelector(".deck").dataset.stepId = next.id;
     if (direction < 0) activeExhibit.jumpToState?.(next.end);
     else activeExhibit.goToState?.(next.start);
     history.replaceState(null, "", stepHref(next));
@@ -464,7 +514,7 @@ window.addEventListener("hashchange", render);
 document.addEventListener("fullscreenchange", () => {
   displayMode = document.fullscreenElement === app ? "presentation" : "preview";
   if (displayMode === "preview") lastFullscreenExit = performance.now();
-  app.querySelector(".deck, .title-slide")?.showDisplayMode();
+  app.querySelector(".deck")?.showDisplayMode();
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) activeExhibit?.pause();
@@ -481,12 +531,12 @@ window.addEventListener("keydown", event => {
     else if (performance.now() - lastFullscreenExit < 250) return;
     else if (displayMode === "presentation") {
       displayMode = "preview";
-      app.querySelector(".deck, .title-slide")?.showDisplayMode();
+      app.querySelector(".deck")?.showDisplayMode();
     } else location.hash = "#/";
     return;
   }
   if (event.code === "KeyF") {
-    const main = app.querySelector(".deck, .title-slide");
+    const main = app.querySelector(".deck");
     if (main) toggleFullscreen(main);
     return;
   }

@@ -15,8 +15,9 @@ export const defaultTitleConfiguration = {
       subtitle:"", agenda:[], highlight:0, before:"gps-constellation",
       action:"model", enabled:true },
     { id:"established-approach", type:"title",
-      title:"The Established Approach to Constellation Optimization",
-      subtitle:"", agenda:[], highlight:0, before:"gps-constellation", enabled:true },
+      title:"The Established Approach",
+      subtitle:"To Satellite Constellation Optimization",
+      agenda:[], highlight:0, before:"gps-constellation", enabled:true },
     { id:"our-approach", type:"title", title:"Our Approach",
       subtitle:"To Space-Based Interceptor Constellation Optimization",
       agenda:[], highlight:0, before:"ground-track", enabled:true },
@@ -29,22 +30,37 @@ export const paneGroups = {
   "geographic-input": [[0],[1],[2],[3,4,5]],
   "missile-salvo": [[0,1,2]],
   "threat-scenarios": [[0],[1],[2],[3],[4],[5,6,7],[8]],
-  "gps-constellation": [[0],[1]],
+  "gps-constellation": [[0,1]],
   "ground-track": [[0],[1],[2,3,4,5,6]]
 };
 
 // Milliseconds spent showing each internal phase before the next phase starts.
 export const phaseDurations = {
-  "geographic-input": {3:1800,4:1300},
+  "geographic-input": {3:2550,4:3000},
+  "gps-constellation": {0:1150},
   "missile-salvo": {0:850,1:1800},
   "threat-scenarios": {5:2100,6:1500},
-  "ground-track": {2:2500,3:2500,4:2500,5:2500}
+  "ground-track": {2:2250,3:2250,4:2250,5:2250}
 };
+
+export function titlePaneId(slide, exhibits) {
+  const number = exhibits.find(item => item.id === slide.before)?.number ?? 0;
+  return String(number).padStart(2,"0")+".00-"+slide.id;
+}
 
 export function loadTitleConfiguration() {
   try {
     const saved = JSON.parse(localStorage.getItem(TITLE_STORAGE_KEY) || "null");
-    if (saved && Array.isArray(saved.slides)) return saved;
+    if (saved && Array.isArray(saved.slides)) {
+      // Preserve browser edits while updating the unchanged prior default.
+      const established = saved.slides.find(slide => slide.id === "established-approach");
+      if (established?.title === "The Established Approach to Constellation Optimization" &&
+          !established.subtitle) {
+        established.title = "The Established Approach";
+        established.subtitle = "To Satellite Constellation Optimization";
+      }
+      return saved;
+    }
   } catch (error) { console.warn("Presentation titles could not be restored.", error); }
   return structuredClone(defaultTitleConfiguration);
 }
@@ -55,7 +71,9 @@ export function buildPresentationSteps(exhibits, selection, config) {
     if (!selection.has(exhibit.id)) continue;
     if (config.enabled) for (const slide of config.slides) {
       if (slide.enabled && slide.before === exhibit.id)
-        steps.push({ id:"title-"+slide.id, kind:"title", slide });
+        steps.push({ id:"title-"+slide.id, kind:"title", slide,
+          paneId:titlePaneId(slide,exhibits),
+          action:slide.id==="results"&&slide.action==="model"?"model":null });
     }
     const groups = paneGroups[exhibit.id] ||
       exhibit.states.map((_, index) => [index]);

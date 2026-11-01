@@ -151,7 +151,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   let paused=true,destroyed=false,raf=0,lastFrame=0,waveSeconds=0,lastCoverageAt=0;
   let currentLookTarget=new THREE.Vector3();
   const simulationSeconds=[0,0];
-  const goldRadii=[5.7,5.7],goldSizes=[64,64],sweepSeconds=[2.0,2.3];
+  const goldRadii=[5.7,5.7],goldSizes=[64,64],sweepSeconds=[2.25,2.5];
   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   if(reducedMotion) transition.duration=1;
 
@@ -193,15 +193,21 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       uniforms.darkRadius.value=1.3;
       uniforms.ringScale.value=index===0?1:.78;
       uniforms.goldRingWidth.value=index===0?2.7:2.5;
-      const goldWave=(stateIndex===1&&index===0)||(stateIndex===5&&index===1);
+      const exitingWave=transition&&
+        ((transition.fromIndex===1&&stateIndex===2&&index===0)||
+         (transition.fromIndex===5&&stateIndex===6&&index===1));
+      const goldWave=(stateIndex===1&&index===0)||(stateIndex===5&&index===1)||
+        exitingWave;
+      const exitStrength=exitingWave?
+        1-ease(0,.62,transition.elapsed/transition.duration):1;
       uniforms.pulseMode.value=goldWave?1:0;
       uniforms.pulseStrength.value=reducedMotion ? 0 : goldWave ?
-        (index===0?1:.52) : 0;
+        (index===0?1:.52)*exitStrength : 0;
       uniforms.sweepSeconds.value=sweepSeconds[index];
       uniforms.revealByWave.value=goldWave?1:0;
       uniforms.revealTime.value=waveSeconds;
-      uniforms.revealDuration.value=index===0?2.0:2.35;
-      uniforms.time.value=waveSeconds-(index===0?2.25:2.6);
+      uniforms.revealDuration.value=sweepSeconds[index];
+      uniforms.time.value=waveSeconds;
     });
     constellations.forEach((constellation,index)=>{
       const orbit=current.orbit[index],satellite=current.satellite[index];
@@ -231,6 +237,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     host.dataset.cameraPosition=camera.position.toArray().map(v=>v.toFixed(9)).join(",");
     host.dataset.cameraQuaternion=camera.quaternion.toArray().map(v=>v.toFixed(9)).join(",");
     host.dataset.globeRotation=root.rotation.y.toFixed(9);
+    host.dataset.waveSeconds=waveSeconds.toFixed(3);
     renderer.render(scene,camera);
   }
   function visualDuringTransition(spec,progress) {
@@ -251,11 +258,11 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     } else if((from===3||from===2)&&to===4) {
       for(const key of ["fill","line","draw","target","gold","orbit","satellite"])
         result[key][0]=spec.from[key][0]*(1-ease(0,.28,progress));
-      result.horizon=1-ease(0,.32,progress);
-      result.rotation=mix(spec.from.rotation,spec.to.rotation,settle(ease(.25,.72,progress)));
-      result.pitch=mix(spec.from.pitch,spec.to.pitch,settle(ease(.25,.72,progress)));
-      result.distance=progress<.5?mix(spec.from.distance,5.3,ease(0,.5,progress)):
-        mix(5.3,spec.to.distance,ease(.5,1,progress));
+      result.horizon=1-ease(.04,.58,progress);
+      result.rotation=mix(spec.from.rotation,spec.to.rotation,settle(ease(.18,.83,progress)));
+      result.pitch=mix(spec.from.pitch,spec.to.pitch,settle(ease(.18,.83,progress)));
+      result.distance=progress<.55?mix(spec.from.distance,5.3,ease(0,.55,progress)):
+        mix(5.3,spec.to.distance,ease(.55,1,progress));
       result.line[1]=ease(.62,.7,progress);
       result.draw[1]=ease(.64,.95,progress);
       result.fill[1]=ease(.82,1,progress);
@@ -270,7 +277,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     } else if((from===1&&to===2)||(from===5&&to===6)) {
       const index=to<4?0:1;
       result.distance=mix(spec.from.distance,spec.to.distance,
-        ease(.68,1,progress));
+        ease(.07,.96,progress));
+      if(from===1&&to===2)result.horizon=ease(.12,.96,progress);
       result.line[index]=.66*ease(.05,.34,progress);
       result.draw[index]=ease(.06,.48,progress);
       result.target[index]=1-ease(.46,.73,progress);
@@ -288,7 +296,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   function waveActive() {
     const index=stateIndex<4?0:1;
     const gold=stateIndex===1||stateIndex===5;
-    return gold&&waveSeconds<sweepSeconds[index]+1.4;
+    return gold&&waveSeconds<sweepSeconds[index]+1.25;
   }
   function needsFrames() {
     return Boolean(transition)||[2,3,6].includes(stateIndex)||waveActive();
@@ -303,7 +311,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       current=visualDuringTransition(transition,progress);
       if(progress>=1) { current=copyVisual(transition.to); transition=null; }
     }
-    if((stateIndex===1||stateIndex===5)&&!transition&&waveActive())
+    if(((stateIndex===1||stateIndex===5)&&!transition||
+        (transition?.fromIndex===1&&stateIndex===2)||
+        (transition?.fromIndex===5&&stateIndex===6))&&
+        waveSeconds<Math.max(...sweepSeconds)+1.25)
       waveSeconds+=delta/1000;
     if([2,3,6].includes(stateIndex)) {
       const index=stateIndex<4?0:1;
@@ -326,15 +337,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(destroyed||index<0||index>=STATE_COUNT||index===paneIndex) return false;
     const previous=stateIndex;
     paneIndex=index;stateIndex=PANE_STATES[index];
-    if([1,2,5,6].includes(stateIndex)) waveSeconds=0;
+    if([1,5].includes(stateIndex)) waveSeconds=0;
     if((stateIndex===2&&previous!==3)||(stateIndex===6&&previous!==5)) {
       const scenario=stateIndex<4?0:1;
       simulationSeconds[scenario]=0;
       constellations[scenario].update(0,true);
     }
-    const duration=(previous===3||previous===2)&&stateIndex===4?1700:
+    const duration=(previous===3||previous===2)&&stateIndex===4?2350:
       [1,5].includes(stateIndex)?1200:
-      [2,6].includes(stateIndex)?2100:1600;
+      [2,6].includes(stateIndex)?2300:1600;
     transition={from:copyVisual(current),to:copyVisual(states[stateIndex]),
       fromIndex:previous,toIndex:stateIndex,elapsed:0,duration:reducedMotion?1:duration};
     host.dataset.stage=String(index+1);

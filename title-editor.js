@@ -1,4 +1,4 @@
-import { buildPresentationSteps } from "./presentation-sequence.js";
+import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js";
 
 function node(tag, className, text) {
   const value = document.createElement(tag);
@@ -33,7 +33,11 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   exportButton.addEventListener("click", () => {
     const data = { version:1,
       instructions:"In presentation-sequence.js, replace defaultTitleConfiguration with this configuration. Each slide's before field inserts it immediately before that exhibit. The slides array order controls slides at the same insertion point. action: model uses the existing SBI model shortcut. The enabled fields control playback.",
-      ...config };
+      ...config,
+      slides:config.slides.map(slide => ({
+        ...slide, paneId:titlePaneId(slide,exhibits),
+        associatedExhibit:slide.before
+      })) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+"\n"],
       {type:"application/json"}));
     const link = node("a", "");
@@ -65,7 +69,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
     preview.replaceChildren();
     for (const step of buildPresentationSteps(exhibits, selection, config)) {
       const item = node("li", "", step.kind === "title" ?
-        "Title · "+step.slide.title+(step.slide.type === "agenda" ?
+        step.paneId+" · Title · "+step.slide.title+(step.slide.type === "agenda" ?
           " — "+(step.slide.agenda[step.slide.highlight] || "") : "") :
         "Exhibit "+String(step.exhibit.number).padStart(2,"0")+" · "+
           step.panes.map(index => String(step.exhibit.number).padStart(2,"0")+"."+
@@ -137,6 +141,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       const action = node("input", ""); action.type = "checkbox"; action.checked = slide.action === "model";
       action.addEventListener("change", () => { slide.action = action.checked ? "model" : undefined; changed(); });
       actionLabel.append(action,node("span", "", "Show SBI model shortcut"));
+      actionLabel.hidden = slide.id !== "results";
       card.append(bar, field("Title",slide.title,value => { slide.title=value; }),
         field("Subtitle",slide.subtitle||"",value => { slide.subtitle=value; }),
         type,position,agenda,highlight,actionLabel);

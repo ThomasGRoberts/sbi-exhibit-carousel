@@ -2,15 +2,18 @@ import * as THREE from "three";
 
 // The ESPL SBI project page uses this same gold icosahedron, orbit reveal,
 // timing, and label unfurl to lead visitors into the live model.
-export function createModelLink(container) {
+export function createModelLink(container, { variant = "small", onActivate } = {}) {
   const link = document.createElement("a");
-  link.className = "model-link";
+  link.className = "model-link" + (variant === "transition" ? " is-transition" : "");
   link.href = "https://espl.ae.gatech.edu/research/models/sbi/";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.setAttribute("aria-label", "Explore the interactive SBI model");
   link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the interactive model&nbsp; →</span>';
-  link.addEventListener("click", event => event.stopPropagation());
+  link.addEventListener("click", event => {
+    event.stopPropagation();
+    onActivate?.();
+  });
   container.append(link);
 
   const canvas = link.querySelector("canvas");
@@ -27,7 +30,8 @@ export function createModelLink(container) {
     return () => link.remove();
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.setSize(44, 44, false);
+  renderer.setSize(variant === "transition" ? 144 : 44,
+    variant === "transition" ? 144 : 44, false);
   renderer.setClearColor(0, 0);
   scene.add(new THREE.AmbientLight(0xffffff, .75));
   const key = new THREE.DirectionalLight(0xffffff, 1.3);

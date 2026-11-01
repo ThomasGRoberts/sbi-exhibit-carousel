@@ -6,7 +6,7 @@ Seven presenter-controlled ESPL exhibits: four for Fernando and three for Nathan
 
 From this directory run `python3 -m http.server 8878`, then open [the local preview](http://localhost:8878/) in Chrome. **Launch Carousel** enters fullscreen and starts the presentation with one click; **Comment on Carousel** opens the editable feedback sheet. All seven exhibits are checked by default. The Configurations tab has a Presentation Titles editor, a global on/off toggle, a sequence preview, and a JSON export. Edits and exhibit selection persist in this browser.
 
-Space, Right Arrow, or a click inside a pane advances one logical presentation step. Left Arrow returns to the previous step, including across exhibit boundaries. Combined sequences play their internal panes automatically. In the preview header, click the exhibit title to choose any included exhibit. The **Pane ID 02.04** control copies only `02.04` on click for column B of the [editable Comment Log](https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0). Direct links work, for example `http://localhost:8878/#/exhibit/geographic-input/02.04`. The gold globe-and-orbit link opens the live SBI model in a new tab and preserves the carousel position.
+Space, Right Arrow, or a click inside a pane advances one logical presentation step. Left Arrow returns to the previous step, including across exhibit boundaries. Combined sequences play their internal panes automatically. Title slides use the same deck controls as exhibits, including copyable stable pane IDs, the Comment Log, and Configure. Edit text opens separate live fields for each title, subtitle, and agenda item; those edits persist locally and appear in the title-configuration export. In the preview header, click the exhibit title to choose any included exhibit. Direct links work, for example `http://localhost:8878/#/exhibit/geographic-input/02.04`. The centered polyhedron appears only on the “Let's See Some Results” title slide; clicking it opens the live SBI model in a new tab and advances the carousel to “The Established Approach.”
 
 Pane IDs and internal names live in `manifest.js`. Logical steps, title slides, and phase timings live in `presentation-sequence.js`. Shared palette and launch-site gold come from `animations/sbi-style.js`. All exhibits remain drafts. This is a static site with no build step; GitHub Pages can serve the repository root when the owner enables it.
 
@@ -26,7 +26,7 @@ Deferred Exhibit 01 feedback: pane 01.03 begins with an unexplained line segment
 
 This is an idealized 24-slot reference: six fixed ECI planes, four satellites each, 55° inclination, 20,200 km circular altitude, and illustrative Walker Delta `24/6/1` phasing. It is not operational ephemeris. J2 is omitted here; Earth rotates beneath the inertial planes. Sources: [GPS.gov space segment](https://www.gps.gov/space-segment) and [U.S. Coast Guard Navigation Center](https://navcen.uscg.gov/global-positioning-system-overview).
 
-The GPS sequence now has two panes. Each plane appears with its four satellites in 05.02. The former Geneva receiver and overhead sky panes (05.03–05.04) are removed from the presentation.
+The GPS sequence now has two internal panes that play as one logical step. After the Established Approach title, the Walker Delta planes and satellites populate automatically through 05.02. The former Geneva receiver and overhead sky panes (05.03–05.04) are removed from the presentation.
 
 ## Exhibit 06 — Repeating Ground Track Orbits
 
