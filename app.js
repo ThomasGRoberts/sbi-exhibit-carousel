@@ -1,6 +1,6 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js";
-import { createModelLink } from "./model-link.js?invitation=2";
+import { createModelLink } from "./model-link.js?invitation=3";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
   TITLE_STORAGE_KEY } from "./presentation-sequence.js";
 import { buildTitleEditor } from "./title-editor.js";
