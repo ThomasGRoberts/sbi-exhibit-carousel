@@ -12,13 +12,13 @@ const sidereal=TAU/OMEGA;
 const repeating={a:Math.cbrt(MU*(sidereal/(3*TAU))**2),inc:50*RAD,
   period:sidereal/3};
 const targetViews=[
-  {left:1,wraps:1,half:1.85},
-  {left:.44,wraps:1,half:1.75},
-  {left:.46,wraps:1,half:4.35},
-  {left:.44,wraps:1,half:4.35},
-  {left:.045,wraps:2,half:3.25},
-  {left:.045,wraps:3,half:3.25},
-  {left:.045,wraps:3,half:3.25}
+  {left:1,wraps:1,half:1.85,origin:-180},
+  {left:.44,wraps:1,half:1.75,origin:-180},
+  {left:.46,wraps:1,half:4.35,origin:-180},
+  {left:.44,wraps:1,half:4.35,origin:-180},
+  {left:.045,wraps:2,half:3.25,origin:-90},
+  {left:.045,wraps:3,half:3.25,origin:-90},
+  {left:.045,wraps:3,half:3.25,origin:-90}
 ];
 
 function eciAt(model,time) {
@@ -53,6 +53,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   if(!response.ok)throw new Error("Ground-track geography could not load");
   const geography=await response.json();
   const tracks=[makeTrack(ordinary),makeTrack(repeating)];
+  const target=tracks[1][64]; // A 40° N point on the actual repeating ground track.
+  const footprintAngle=Math.acos(Math.cos(10*RAD)/(ordinary.a/R))-10*RAD;
   const scene=new THREE.Scene();scene.background=new THREE.Color(0xffffff);
   const earth=makeEarth(geography);scene.add(earth);
   const orbitGeometry=new THREE.BufferGeometry();
@@ -82,6 +84,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   host.dataset.repeatAltitudeKm=(repeating.a-R).toFixed(3);
   host.dataset.repeatInclinationDeg="50";
   host.dataset.ordinaryAltitudeKm="700";
+  host.dataset.targetLatitude=target.latitude.toFixed(6);
+  host.dataset.targetLongitude=target.longitude.toFixed(6);
+  host.dataset.footprintAngularRadiusDeg=(footprintAngle/RAD).toFixed(4);
   host.dataset.longitudeAtRepeat=tracks[1][1200].unwrapped.toFixed(6);
   host.dataset.repeatClosureDeg=Math.hypot(
     tracks[1][1200].latitude-tracks[1][0].latitude,
@@ -100,23 +105,24 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(stage===0)return;
     const x0=view.left*width,margin=width*.016,plotX=x0+margin;
     const plotW=width-plotX-margin,plotY=height*.22,plotH=height*.53;
-    const wraps=view.wraps,domainMax=-180+360*wraps;
-    const xFor=lon=>plotX+(lon+180)/(360*wraps)*plotW;
+    const wraps=view.wraps,domainMax=view.origin+360*wraps;
+    const xFor=lon=>plotX+(lon-view.origin)/(360*wraps)*plotW;
     const yFor=lat=>plotY+(90-lat)/180*plotH;
     ctx.fillStyle="#fff";ctx.fillRect(x0,0,width-x0,height);
     ctx.save();ctx.beginPath();ctx.rect(plotX,plotY,plotW,plotH);ctx.clip();
     ctx.fillStyle="#fafafa";ctx.fillRect(plotX,plotY,plotW,plotH);
     const backgroundAlpha=stage>=5?.38:stage>=4?.68:1;
     ctx.globalAlpha=backgroundAlpha;
-    for(let copy=0;copy<Math.ceil(wraps);copy++)
+    for(let copy=-1;copy<=Math.ceil(wraps);copy++)
       ctx.drawImage(world,xFor(-180+copy*360),plotY,plotW/wraps,plotH);
     ctx.globalAlpha=1;
     ctx.strokeStyle="#e2e2e2";ctx.lineWidth=1;
     for(const lat of [-60,-30,0,30,60]){
       ctx.beginPath();ctx.moveTo(plotX,yFor(lat));ctx.lineTo(plotX+plotW,yFor(lat));ctx.stroke();
     }
-    for(let copy=1;copy<Math.ceil(wraps);copy++){
+    for(let copy=0;copy<=Math.ceil(wraps);copy++){
       const x=xFor(-180+copy*360);
+      if(x<=plotX||x>=plotX+plotW)continue;
       ctx.setLineDash([5,6]);ctx.strokeStyle="#aaa";ctx.beginPath();
       ctx.moveTo(x,plotY);ctx.lineTo(x,plotY+plotH);ctx.stroke();ctx.setLineDash([]);
     }
@@ -136,6 +142,34 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     ctx.strokeStyle="rgba(70,70,70,.68)";ctx.lineWidth=1.25;
     ctx.lineJoin="round";ctx.stroke();
     const current=groundAt(stage<2?ordinary:repeating,time);
+    if(stage===1){
+      const lat1=current.latitude*RAD,lon1=current.longitude*RAD;
+      ctx.beginPath();
+      for(let i=0;i<=128;i++){
+        const bearing=i*TAU/128;
+        const lat2=Math.asin(Math.sin(lat1)*Math.cos(footprintAngle)+
+          Math.cos(lat1)*Math.sin(footprintAngle)*Math.cos(bearing));
+        const lon2=lon1+Math.atan2(Math.sin(bearing)*Math.sin(footprintAngle)*Math.cos(lat1),
+          Math.cos(footprintAngle)-Math.sin(lat1)*Math.sin(lat2));
+        const x=xFor(lon2/RAD),y=yFor(lat2/RAD);
+        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.closePath();ctx.fillStyle="rgba(234,170,0,.11)";ctx.fill();
+      ctx.save();ctx.clip();
+      ctx.fillStyle="rgba(234,170,0,.18)";
+      const cell=Math.max(5,plotW/65);
+      for(let y=plotY;y<plotY+plotH;y+=cell)
+        for(let x=plotX;x<plotX+plotW;x+=cell)ctx.fillRect(x+1,y+1,cell-2,cell-2);
+      ctx.restore();
+      ctx.setLineDash([4,4]);ctx.strokeStyle="rgba(184,139,19,.7)";
+      ctx.lineWidth=1.4;ctx.stroke();ctx.setLineDash([]);
+    }
+    if(stage===1){
+      ctx.textAlign="center";ctx.font="600 11px Roboto,Arial,sans-serif";
+      ctx.fillStyle="#8b6a1c";
+      ctx.fillText("Satellite coverage footprint · 10° minimum elevation",
+        plotX+plotW/2,plotY-17);
+    }
     const nearest=source[Math.min(index,source.length-1)];
     const dotLon=stage>=4?nearest.unwrapped:current.longitude;
     const dotX=xFor(dotLon),dotY=yFor(current.latitude);
@@ -144,8 +178,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       ctx.beginPath();ctx.arc(dotX,dotY,4.4,0,TAU);ctx.fill();ctx.stroke();
     }
     if(stage>=3){
-      for(const lon of [0,360,720]){
-        const x=xFor(lon),y=yFor(0);
+      for(const lon of [target.longitude,target.longitude+720]){
+        const x=xFor(lon),y=yFor(target.latitude);
         if(x<plotX||x>plotX+plotW)continue;
         ctx.fillStyle="#b88b13";ctx.beginPath();ctx.arc(x,y,4.8,0,TAU);ctx.fill();
         if(stage===3&&elapsed<1.4){
@@ -154,9 +188,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
           ctx.stroke();
         }
       }
-      const nearReturn=stage===6&&Math.abs(time-3*repeating.period)<repeating.period*.035;
+      const nearReturn=stage===6&&Math.abs(time-3.16*repeating.period)<repeating.period*.035;
       if(nearReturn){
-        const x=xFor(720),y=yFor(0);
+        const x=xFor(target.longitude+720),y=yFor(target.latitude);
         ctx.strokeStyle="#b88b13";ctx.lineWidth=2;
         ctx.beginPath();ctx.arc(x,y,10,0,TAU);ctx.stroke();
       }
@@ -177,6 +211,19 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     }
     ctx.font="600 11px Roboto,Arial,sans-serif";
     ctx.fillText("Longitude",plotX+plotW/2,plotY+plotH+39);
+    if(stage===4) {
+      const annotate=(start,end,y,label)=>{
+        const x1=xFor(start),x2=xFor(end);
+        ctx.strokeStyle="#8f8f8f";ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(x1,y+5);ctx.lineTo(x1,y);
+        ctx.lineTo(x2,y);ctx.lineTo(x2,y+5);ctx.stroke();
+        ctx.textAlign="center";ctx.fillStyle="#666";
+        ctx.font="10.5px Roboto,Arial,sans-serif";
+        ctx.fillText(label,(x1+x2)/2,y-6);
+      };
+      annotate(0,120,plotY-13,"½ orbital period");
+      annotate(0,240,plotY-42,"1 orbital period");
+    }
     ctx.textAlign="left";
     host.dataset.mapWraps=wraps.toFixed(3);
     host.dataset.groundLongitude=current.longitude.toFixed(5);
@@ -189,7 +236,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       const t=ease(transition);
       view={left:from.left+(targetViews[stage].left-from.left)*t,
         wraps:from.wraps+(targetViews[stage].wraps-from.wraps)*t,
-        half:from.half+(targetViews[stage].half-from.half)*t};
+        half:from.half+(targetViews[stage].half-from.half)*t,
+        origin:from.origin+(targetViews[stage].origin-from.origin)*t};
     }else view={...targetViews[stage]};
     const model=stage<2?ordinary:repeating;
     const time=stage<2?ordinaryTime:repeatTime;
@@ -220,7 +268,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(transition<1)transition=Math.min(1,transition+delta/(reduced?.01:1.4));
     if(stage<2)ordinaryTime=Math.min(ordinary.period*(stage===0?.84:3.9),
       ordinaryTime+1100*delta);
-    else repeatTime=Math.min(repeating.period*(stage===2?1:stage===3||stage===4?2:3),
+    else repeatTime=Math.min(repeating.period*(stage===2?1:stage===3||stage===4?2:
+      stage===6?3.16:3),
       repeatTime+7200*delta);
     render();raf=requestAnimationFrame(frame);
   }

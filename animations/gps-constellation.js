@@ -23,9 +23,7 @@ export function createAnimation(host,options) {
     cameraPosition:[8,5.6,9.5],
     markerColor:0xffffff,markerSize:18,orbitOpacity:.36,playbackRate:900,
     introPlaybackRate:300,
-    noteTitle:"Global Positioning System",
-    noteDetail:"24 satellites · Reference architecture",noteStates:[1,2],
-    stateCount:4,receiverStage:2,mapStates:[3],coverageIntervalMs:120,
+    stateCount:4,receiverStage:2,skyStage:3,mapStates:[],coverageIntervalMs:120,
     orbitVisible:index=>index>=1&&index<=2
   },options);
 }

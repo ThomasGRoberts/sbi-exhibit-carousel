@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { makeEarth, makeRegion, latLonVector } from "./globe-geometry.js";
 import { SBI_GOLD } from "./sbi-style.js";
+import { createAnimation as createSalvoAnimation } from "./missile-salvo.js";
 
 const ORDER=["north-korea","iran","china","russia"];
 const NAMES={"north-korea":"North Korea",iran:"Iran",china:"China",russia:"Russia"};
@@ -50,11 +51,15 @@ function addIranReveal(svg) {
 export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const responses=await Promise.all([
     fetch(new URL("../assets/scenario-tiles.json",import.meta.url)),
-    fetch(new URL("../assets/countries.geo.json",import.meta.url))
+    fetch(new URL("../assets/countries.geo.json",import.meta.url)),
+    fetch(new URL("../assets/salvo-scenarios.json",import.meta.url))
   ]);
   if(responses.some(response=>!response.ok))
     throw new Error("Scenario geography could not be loaded");
-  const [tiles,geography]=await Promise.all(responses.map(response=>response.json()));
+  const [tiles,geography,salvos]=await Promise.all(responses.map(response=>response.json()));
+  const iranFrame=salvos.scenarios.find(item=>item.id==="iran")?.cameraFrames[0];
+  if(!iranFrame)throw new Error("Iran camera frame missing");
+  const iranFocus=new THREE.Vector3(...iranFrame.slice(0,3)).normalize();
   const byRegion=new Map(tiles.map(item=>[item.region,item.svg]));
   const stage=document.createElement("div");
   stage.className="threat-stage";
@@ -82,6 +87,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   let stateIndex=0,overlay=null,expansionStarted=0,destroyed=false,paused=true;
   let expansionFrame=0,globeFrame=0,globeRenderer=null,globeObserver=null;
   let globeScene=null,globeSites=[],globeCanvas=null;
+  let salvoHost=null,salvoAnimation=null,salvoLoad=null;
   const siteStarted=[-Infinity,-Infinity];
   function hideOverlay(){
     cancelAnimationFrame(expansionFrame);
@@ -104,7 +110,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       region.fill.material.opacity=.82;region.outline.visible=false;
       globeScene.add(region.group);
     }
-    const camera=new THREE.PerspectiveCamera(38,16/9,.01,100);
+    const camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);
     globeSites=SITE_COORDS.map(([lat,lon])=>{
       const normal=latLonVector(lat,lon).normalize();
       const dot=new THREE.Mesh(surfaceGeometry(normal,0,.0036),
@@ -116,24 +122,25 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       dot.renderOrder=10;pulse.renderOrder=11;
       globeScene.add(dot,pulse);return {normal,dot,pulse};
     });
-    globeObserver=new ResizeObserver(()=>{
+    const resizeGlobe=()=>{
       if(!globeRenderer||!overlay)return;
       // The tile changes size for two seconds. Keep one WebGL drawing buffer
       // throughout that CSS transition; reallocating it each frame flashes.
       const width=Math.max(1,stage.clientWidth),height=Math.max(1,stage.clientHeight);
       globeRenderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
       globeRenderer.setSize(width,height,false);
-      camera.aspect=width/height;camera.updateProjectionMatrix();
-    });
+      const half=300/iranFrame[3];
+      camera.left=-half*width/height;camera.right=-camera.left;
+      camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();
+    };
+    globeObserver=new ResizeObserver(resizeGlobe);
     globeObserver.observe(stage);
+    resizeGlobe();
     const draw=now=>{
       if(!overlay||destroyed||!globeRenderer)return;
-      const t=clamp((now-expansionStarted)/2050),smooth=ease(t);
-      globeCanvas.style.opacity=String(ease((t-.08)/.48));
-      const normal=latLonVector(32,30+24*smooth);
-      const distance=3.25-1.75*smooth;
-      camera.position.copy(normal).multiplyScalar(distance);
-      camera.lookAt(latLonVector(32,54,.66*smooth));
+      // Match the first Iran-salvo frame exactly, including projection scale.
+      camera.position.copy(iranFocus).multiplyScalar(3);
+      camera.up.set(0,1,0);camera.lookAt(0,0,0);
       globeSites.forEach((site,index)=>{
         const visible=stateIndex>=index+6;
         site.dot.visible=visible;
@@ -150,9 +157,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       globeRenderer.render(globeScene,camera);
       globeFrame=requestAnimationFrame(draw);
     };
-    globeFrame=requestAnimationFrame(draw);
+    draw(performance.now());
   }
-  function makeOverlay(){
+  function makeOverlay(instant=false){
     hideOverlay();
     const source=cards.get("iran");
     const rect=source.getBoundingClientRect(),bounds=stage.getBoundingClientRect();
@@ -168,9 +175,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const svg=overlay.querySelector("svg");
     addIranReveal(svg);
     stage.append(overlay);
-    expansionStarted=performance.now();
+    if(instant){
+      overlay.style.transition="none";
+      overlay.classList.add("is-expanded");
+    }
+    expansionStarted=performance.now()-(instant?2050:0);
     startGlobe(overlay);
-    expansionFrame=requestAnimationFrame(()=>{
+    svg.style.visibility="hidden";
+    if(instant)stage.classList.add("has-zoom");
+    else expansionFrame=requestAnimationFrame(()=>{
       stage.classList.add("has-zoom");
       overlay?.classList.add("is-expanded");
     });
@@ -187,7 +200,34 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       }
     }
   }
-  function render(replay=false) {
+  async function showIranSalvo() {
+    if(!salvoHost) {
+      salvoHost=document.createElement("div");
+      salvoHost.className="iran-salvo-panel";
+      salvoHost.style.visibility="hidden";
+      stage.append(salvoHost);
+    }
+    if(!salvoAnimation&&!salvoLoad) {
+      salvoLoad=createSalvoAnimation(salvoHost,{mode:"iran-salvo"})
+        .then(instance=>{
+          salvoLoad=null;
+          if(destroyed){instance.destroy();return null;}
+          salvoAnimation=instance;
+          return instance;
+        }).catch(error=>{
+          salvoLoad=null;
+          console.error("Iran salvo could not start.",error);
+          return null;
+        });
+    }
+    const instance=salvoAnimation||await salvoLoad;
+    if(!instance||destroyed||stateIndex!==8)return;
+    instance.jumpToState(0);
+    salvoHost.style.visibility="visible";
+    stage.classList.add("has-salvo");
+    if(!paused)instance.start();
+  }
+  function render(replay=false,instant=false) {
     if(destroyed)return;
     const selected=stateIndex>=5?"iran":ORDER[stateIndex-1]||null;
     for(const [region,card] of cards) {
@@ -201,36 +241,44 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
         card.dataset.pulsing="true";
       }
     }
-    if(stateIndex>=5&&!overlay)makeOverlay();
+    if(stateIndex>=5&&!overlay)makeOverlay(instant);
     if(stateIndex<5&&overlay)hideOverlay();
+    if(stateIndex===8)void showIranSalvo();
+    else {
+      stage.classList.remove("has-salvo");
+      if(salvoHost)salvoHost.style.visibility="hidden";
+      salvoAnimation?.pause();
+    }
     const siteTime=Math.max(performance.now(),expansionStarted+1550);
-    if(replay&&stateIndex>=6)siteStarted[stateIndex-6]=siteTime;
+    if(replay&&(stateIndex===6||stateIndex===7))siteStarted[stateIndex-6]=siteTime;
     if(stateIndex>=6&&siteStarted[0]===-Infinity)siteStarted[0]=siteTime;
     if(stateIndex>=7&&siteStarted[1]===-Infinity)siteStarted[1]=siteTime;
     updateReveal(replay);
     host.dataset.stage=String(stateIndex+1);
     host.dataset.scenario=selected||"none";
-    host.dataset.visibleIranSites=String(Math.max(0,stateIndex-5));
+    host.dataset.visibleIranSites=String(Math.min(2,Math.max(0,stateIndex-5)));
   }
   function goToState(index) {
-    if(destroyed||index<0||index>=8||index===stateIndex)return false;
-    stateIndex=index;render(true);onStateChange(index,8);return true;
+    if(destroyed||index<0||index>=9||index===stateIndex)return false;
+    stateIndex=index;render(true);onStateChange(index,9);return true;
   }
   function jumpToState(index){
-    if(index<0||index>=8)return;
-    stateIndex=index;render(true);onStateChange(index,8);
+    if(index<0||index>=9)return;
+    stateIndex=index;render(true,true);onStateChange(index,9);
   }
-  render();onStateChange(0,8);
+  render();onStateChange(0,9);
   return {
-    stateCount:8,getStateIndex:()=>stateIndex,
+    stateCount:9,getStateIndex:()=>stateIndex,
     next:()=>goToState(stateIndex+1),previous:()=>goToState(stateIndex-1),
     goToState,jumpToState,
     isTransitioning:()=>stateIndex===5&&performance.now()-expansionStarted<2100,
-    start(){if(destroyed)return;paused=false;stage.classList.remove("is-paused");},
-    pause(){paused=true;stage.classList.add("is-paused");},
+    start(){if(destroyed)return;paused=false;stage.classList.remove("is-paused");
+      if(stateIndex===8)salvoAnimation?.start();},
+    pause(){paused=true;stage.classList.add("is-paused");salvoAnimation?.pause();},
     restart(){goToState(0);},
     resize(){if(destroyed)return;},
-    destroy(){if(destroyed)return;destroyed=true;hideOverlay();host.replaceChildren();}
+    destroy(){if(destroyed)return;destroyed=true;salvoAnimation?.destroy();
+      hideOverlay();host.replaceChildren();}
   };
 }
 

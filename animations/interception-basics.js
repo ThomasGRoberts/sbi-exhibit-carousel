@@ -30,6 +30,7 @@ const TERMINAL_COAST_SECONDS=(BURNOUT_VY+
 const TERMINAL_CONTACT_SECONDS=BOOST_SECONDS+TERMINAL_COAST_SECONDS;
 const TERMINAL_MOVIE_START=600;
 const TERMINAL_DEFENSE_START=TERMINAL_CONTACT_SECONDS-TERMINAL_DEFENSE_FLIGHT_SECONDS;
+const PANE_STATES=[0,0,1,2,3,6,7,8];
 const EARTH_CENTER=new THREE.Vector3(0,-1,0);
 const Y_AXIS=new THREE.Vector3(0,1,0);
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
@@ -226,7 +227,8 @@ function createFlash() {
   const core=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),
     new THREE.MeshBasicMaterial({color:0xfffbe0,transparent:true,opacity:0,
       depthTest:false,depthWrite:false}));
-  glow.renderOrder=21;core.renderOrder=22;
+  // Keep the two black contact dots above the collision light.
+  glow.renderOrder=15;core.renderOrder=16;
   group.add(glow,core);
   function update(point,age) {
     const visible=age>=0&&age<1.05;
@@ -248,9 +250,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const launch=samples[0],spaceContact=trackAt(BOOST_SECONDS);
   const terminalContact=trackAt(TERMINAL_CONTACT_SECONDS);
   const terminalAngle=START_ANGLE+GROUND_RANGE_KM/R;
-  const defenseAnchor=radialPoint(1,terminalAngle-.018);
+  const defenseAnchor=radialPoint(1,terminalAngle-.05);
   const originalSite=makeSurfaceSite(launch);
   const defenseSite=makeSurfaceSite(defenseAnchor);
+  const visibleLaunch=originalSite.normal.clone().multiplyScalar(1.002).add(EARTH_CENTER);
   const alignmentKm=launch.distanceTo(originalSite.anchor)*R;
   if(alignmentKm!==0||samples[0].distanceTo(launch)!==0)
     throw new Error("Ballistic trajectory does not start at the marker center");
@@ -360,10 +363,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
 
   const views=[
     {x:0,y:.035,half:.22},{x:0,y:.035,half:.22},
-    {x:0,y:.035,half:.22},{x:.17,y:.025,half:.10},
-    {x:terminalContact.x,y:terminalContact.y,half:.08},{x:0,y:.035,half:.22},
-    {x:0,y:.035,half:.22},{x:-.04,y:.04,half:.20},
-    {x:-.04,y:.04,half:.20}
+    {x:0,y:.035,half:.22},{x:0,y:.035,half:.22},
+    {x:0,y:.035,half:.22},{x:0,y:.035,half:.22},
+    {x:0,y:.035,half:.22},{x:0,y:.035,half:.22},
+    {x:0,y:.035,half:.22}
   ];
   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   let stateIndex=0,paneIndex=0,elapsed=0,transition=null,paused=true,destroyed=false;
@@ -379,6 +382,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     }
     satelliteGeometry.attributes.position.needsUpdate=true;
     satelliteGeometry.attributes.color.needsUpdate=true;
+    const visibleCount=stateIndex===6?
+      Math.min(SATELLITE_COUNT,Math.floor(elapsed/.12)+1):SATELLITE_COUNT;
+    satelliteGeometry.setDrawRange(0,visibleCount);
+    host.dataset.visibleSatelliteCount=String(visibleCount);
   }
   function drawBallisticOverlay() {
     const width=Math.max(1,host.clientWidth),height=Math.max(1,host.clientHeight);
@@ -387,13 +394,30 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(stateIndex===0)return;
     const screen=point=>{const p=point.clone().project(camera);
       return [(p.x*.5+.5)*width,(-p.y*.5+.5)*height];};
+    const launchScreen=screen(visibleLaunch);
+    function drawLaunchDot() {
+      let join;
+      for(const sample of samples){
+        const point=screen(sample);
+        if(Math.hypot(point[0]-launchScreen[0],point[1]-launchScreen[1])>=12){
+          join=point;break;
+        }
+      }
+      if(join){
+        context.beginPath();context.moveTo(...launchScreen);context.lineTo(...join);
+        context.setLineDash([]);context.strokeStyle="#242424";
+        context.lineWidth=1.8;context.globalAlpha=.7;context.stroke();
+      }
+      context.beginPath();context.arc(...launchScreen,4.2,0,Math.PI*2);
+      context.fillStyle="#b88b13";context.globalAlpha=1;context.fill();
+    }
     function stroke(points,first,last,{dotted=false,gradient=false,opacity=1,widthPx=3.3,
       terminalPoint=null}={}) {
       first=Math.max(0,Math.floor(first));last=Math.min(points.length-1,Math.floor(last));
       if(last<=first)return;
       context.beginPath();
       for(let i=first;i<=last;i++) {
-        const [x,y]=screen(points[i]);
+        const [x,y]=screen(i===0&&points===samples?visibleLaunch:points[i]);
         if(i===first)context.moveTo(x,y);else context.lineTo(x,y);
       }
       if(terminalPoint){const [x,y]=screen(terminalPoint);context.lineTo(x,y);}
@@ -409,9 +433,44 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     }
     if(stateIndex===1) {
       stroke(samples,0,(samples.length-1)*ease(elapsed/2.3),
-        {dotted:true,opacity:.7});return;
+        {dotted:true,opacity:.7});
+      const curve=samples.map(screen),distances=[0];
+      for(let i=1;i<curve.length;i++)distances[i]=distances[i-1]+Math.hypot(
+        curve[i][0]-curve[i-1][0],curve[i][1]-curve[i-1][1]);
+      const atDistance=value=>{
+        let i=1;while(i<distances.length-1&&distances[i]<value)i++;
+        const span=Math.max(.001,distances[i]-distances[i-1]);
+        const t=clamp((value-distances[i-1])/span);
+        return {x:curve[i-1][0]+(curve[i][0]-curve[i-1][0])*t,
+          y:curve[i-1][1]+(curve[i][1]-curve[i-1][1])*t,
+          angle:Math.atan2(curve[i][1]-curve[i-1][1],curve[i][0]-curve[i-1][0])};
+      };
+      const reveal=ease(elapsed/2.3);
+      context.font="600 12px Roboto, Arial, sans-serif";
+      context.textBaseline="middle";
+      const phases=[
+        {label:"Boost phase",time:BOOST_SECONDS*.55},
+        {label:"Midcourse phase",time:(BOOST_SECONDS+TERMINAL_CONTACT_SECONDS)*.5},
+        {label:"Terminal phase",time:(TERMINAL_CONTACT_SECONDS+TOTAL_SECONDS)*.5}
+      ];
+      for(const {label,time} of phases) {
+        if(time/TOTAL_SECONDS>reveal+.02)continue;
+        const center=distances[Math.min(samples.length-1,Math.round(time))];
+        const glyphs=[...label],widths=glyphs.map(glyph=>context.measureText(glyph).width);
+        const total=widths.reduce((sum,value)=>sum+value,0);
+        let distance=clamp(center,total/2+8,distances.at(-1)-total/2-8)-total/2;
+        context.fillStyle="#4d4d4d";
+        for(let i=0;i<glyphs.length;i++) {
+          const width=widths[i],p=atDistance(distance+width/2);
+          context.save();context.translate(p.x,p.y);context.rotate(p.angle);
+          context.fillText(glyphs[i],-width/2,-15);context.restore();
+          distance+=width;
+        }
+      }
+      drawLaunchDot();
+      return;
     }
-    if(stateIndex===2){stroke(samples,0,samples.length-1,{dotted:true,opacity:.7});return;}
+    if(stateIndex===2){stroke(samples,0,samples.length-1,{dotted:true,opacity:.7});}
     if(stateIndex===5) {
       stroke(samples,0,(samples.length-1)*ease(elapsed/2),
         {dotted:true,opacity:.38});return;
@@ -424,7 +483,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
         stateIndex===8?BOOST_SECONDS:BOOST_SECONDS*clamp(elapsed/ORBIT_MOVIE_SECONDS);
       const head=Math.floor(sim);
       const exact=stateIndex===3?trackAt(sim):stateIndex===4?terminalContact:trackAt(sim);
-      stroke(samples,Math.max(0,head-165),head,{gradient:true,widthPx:3.4,
+      if(stateIndex===3)stroke(samples,0,samples.length-1,{dotted:true,opacity:.48});
+      stroke(samples,0,head,{gradient:true,widthPx:3.4,
         terminalPoint:exact,opacity:stateIndex===8?1-ease((elapsed-.7)/3):1});
     }
     if(stateIndex===3||stateIndex===4) {
@@ -446,6 +506,17 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
           terminalPoint:guidance.at((movie-RELEASE_SECONDS)/guidanceDuration),
           opacity:stateIndex===8?1-ease((elapsed-.7)/3):1});
     }
+    if(stateIndex===7) {
+      const movie=BOOST_SECONDS*clamp(elapsed/ORBIT_MOVIE_SECONDS);
+      const age=(movie-RELEASE_SECONDS)/BOOST_SECONDS*ORBIT_MOVIE_SECONDS;
+      if(age>=0&&age<1.2) {
+        const [sx,sy]=screen(guidance.start);
+        context.beginPath();context.arc(sx,sy,5+9*ease(age/1.2),0,Math.PI*2);
+        context.strokeStyle=`rgba(184,139,19,${.7*(1-age/1.2)})`;
+        context.lineWidth=1.8;context.stroke();
+      }
+    }
+    if(stateIndex===2||stateIndex===3||stateIndex===4)drawLaunchDot();
   }
   function render() {
     if(destroyed)return;
@@ -456,38 +527,26 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const fly=paneIndex===0?0:paneIndex===1?ease(elapsed/4.1):1;
     const settledHalf=from.half+(view.half-from.half)*cameraProgress;
     let half=.95*(1-fly)+settledHalf*fly;
-    if(stateIndex===2) {
-      const visit=ease(elapsed/1.05)*(1-ease((elapsed-1.5)/1.5));
-      x+=(defenseAnchor.x-x)*visit;
-      y+=(defenseAnchor.y-y)*visit;
-      half*=1-.24*visit;
-    }
-    if(stateIndex===3) {
-      const progress=ease(elapsed/TERMINAL_MOVIE_SECONDS);
-      const tracked=trackAt(TERMINAL_CONTACT_SECONDS*
-        clamp(elapsed/TERMINAL_MOVIE_SECONDS));
-      x=tracked.x;y=tracked.y;
-      half=.22-.11*progress;
-    }
+    // Keep the whole ballistic arc in frame during the terminal engagement.
     currentView={x,y,half};
     const aspect=Math.max(1,host.clientWidth)/Math.max(1,host.clientHeight);
     camera.left=-half;camera.right=half;
     camera.top=half/aspect;camera.bottom=-half/aspect;
     const targetY=-.43*(1-fly)+y*fly;
+    const terminalAbove=stateIndex===2||stateIndex===3?1.5:.32;
     camera.position.set(x+.12*Math.sin(elapsed*.22)*(1-fly),
-      targetY+(2.35*(1-fly)+.32*fly),2.2*(1-fly)+3*fly);
+      targetY+(2.35*(1-fly)+terminalAbove*fly),2.2*(1-fly)+3*fly);
     camera.lookAt(x,targetY,0);camera.updateProjectionMatrix();camera.updateMatrixWorld();
     const perPixel=2*half/Math.max(1,host.clientWidth);
     updateSiteCore(originalSite,perPixel,SURFACE_SITE_RADIUS_PX);
-    updateSiteCore(defenseSite,perPixel);
+    updateSiteCore(defenseSite,perPixel,6);
     originalSite.core.visible=originalSite.normal.dot(
       camera.position.clone().sub(originalSite.anchor))>0;
     defenseSite.core.visible=defenseSite.normal.dot(
       camera.position.clone().sub(defenseSite.anchor))>0;
     updatePulse(originalSite,stateIndex===0?elapsed%8.5:-1,perPixel,SURFACE_SITE_RADIUS_PX);
     defenseSite.group.visible=stateIndex>=2&&stateIndex<=4;
-    if(defenseSite.group.visible)
-      updatePulse(defenseSite,stateIndex===2?elapsed:-1,perPixel);
+    if(defenseSite.group.visible)updatePulse(defenseSite,-1,perPixel);
     const markerScreen=launch.clone().project(camera);
     const trajectoryScreen=samples[0].clone().project(camera);
     host.dataset.launchProjectionErrorPx=Math.hypot(markerScreen.x-trajectoryScreen.x,
@@ -526,11 +585,11 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(stateIndex>=6)updateSatellites(orbitalSeconds,movieSeconds);
     interceptor.visible=stateIndex===7&&movieSeconds>=RELEASE_SECONDS||stateIndex===8;
     missile.material.opacity=interceptor.material.opacity=stateIndex===8?
-      1-ease((elapsed-.7)/3):1;
+      1-ease((elapsed-1.2)/2.5):1;
     if(interceptor.visible)movePoint(interceptor,stateIndex===8||
       elapsed>=ORBIT_MOVIE_SECONDS?spaceContact:
       guidance.at((movieSeconds-RELEASE_SECONDS)/guidanceDuration));
-    guidedLine.visible=false;
+    guidedLine.visible=stateIndex===7||stateIndex===8;
     if(stateIndex===7)
       drawThrough(guidedLine,guidance.points.length*
         clamp((movieSeconds-RELEASE_SECONDS)/guidanceDuration));
@@ -581,8 +640,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     lastFrame=performance.now();raf=requestAnimationFrame(frame);
   }
   function goToState(index){
-    if(destroyed||index<0||index>=10||index===paneIndex)return false;
-    const previous=stateIndex;paneIndex=index;stateIndex=Math.max(0,index-1);elapsed=0;
+    if(destroyed||index<0||index>=PANE_STATES.length||index===paneIndex)return false;
+    const previous=stateIndex;paneIndex=index;stateIndex=PANE_STATES[index];elapsed=0;
     if(stateIndex===6)orbitClock=previous===7||previous===8?savedStage6Clock:0;
     if(stateIndex===7) {
       if(previous===8) {orbitClock=engagementStartClock;aligning=false;}
@@ -598,18 +657,18 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(stateIndex===8) {aligning=false;orbitClock=engagementStartClock+BOOST_SECONDS;}
     transition={fromView:{...currentView},elapsed:0,duration:reducedMotion?1:
       stateIndex===2?1500:stateIndex===5?1250:900};
-    onStateChange(index,10);schedule();return true;
+    onStateChange(index,PANE_STATES.length);schedule();return true;
   }
   function jumpToState(index){
-    if(index<0||index>=10)return;
-    paneIndex=index;stateIndex=Math.max(0,index-1);
-    transition=null;elapsed=stateIndex===6?3:0;
+    if(index<0||index>=PANE_STATES.length)return;
+    paneIndex=index;stateIndex=PANE_STATES[index];
+    transition=null;elapsed=stateIndex===6?6:0;
     if(stateIndex>=6) {
       guidance=initialGuidance;engagementStartClock=ORBIT_INTRO_SECONDS;
       aligning=false;orbitClock=stateIndex===6?ORBIT_INTRO_SECONDS:
         ORBIT_INTRO_SECONDS+(stateIndex===8?BOOST_SECONDS:0);
     }
-    onStateChange(index,10);render();
+    onStateChange(index,PANE_STATES.length);render();
   }
   function resize(){
     if(destroyed)return;
@@ -622,15 +681,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     render();
   }
   const observer=new ResizeObserver(resize);observer.observe(host);
-  onStateChange(0,10);resize();
+  onStateChange(0,PANE_STATES.length);resize();
   return {
-    stateCount:10,getStateIndex:()=>paneIndex,
+    stateCount:PANE_STATES.length,getStateIndex:()=>paneIndex,
     next:()=>goToState(paneIndex+1),previous:()=>goToState(paneIndex-1),
     goToState,jumpToState,
     isTransitioning:()=>Boolean(transition)||
       (stateIndex===0&&elapsed<2.2)||(stateIndex===1&&elapsed<2.3)||
       (stateIndex===3&&elapsed<TERMINAL_MOVIE_SECONDS)||
-      (stateIndex===5&&elapsed<2)||(stateIndex===6&&elapsed<3)||
+      (stateIndex===6&&elapsed<4.5)||
       (stateIndex===7&&elapsed<ORBIT_MOVIE_SECONDS),
     start(){if(!destroyed&&!document.hidden){paused=false;schedule();}},
     pause(){paused=true;cancelAnimationFrame(raf);raf=0;},

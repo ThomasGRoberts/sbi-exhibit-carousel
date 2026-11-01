@@ -2,11 +2,12 @@ import * as THREE from "three";
 import { makeEarth, makeRegion, latLonVector } from "./globe-geometry.js";
 import { SBI_GOLD_CSS, MISSILE_BLACK_CSS, SITE_DOT_RADIUS_PX,
   MISSILE_DOT_RADIUS_PX, blackTrailGradient } from "./sbi-style.js";
-const COUNT=8;
+const NORTH_KOREA_PANES=[4,5,6];
+const IRAN_SALVO_PANES=[2];
 const GOLD=SBI_GOLD_CSS;
 const DARK="#4a4a4a";
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
-const STOP_FRACTION=.82;
+const ease=x=>{x=clamp(x);return x*x*(3-2*x);};
 const PLAYBACK_RATE=1.8;
 function slerp(a,b,t) {
   const angle=Math.acos(clamp(a.dot(b),-1,1));
@@ -35,7 +36,8 @@ function makeScenario(raw) {
       [shot.site.join(","),latLonVector(...shot.site)])).values()]
   };
 }
-export async function createAnimation(host,{onStateChange=()=>{}}={}) {
+export async function createAnimation(host,{onStateChange=()=>{},mode="north-korea"}={}) {
+  const paneStates=mode==="iran-salvo"?IRAN_SALVO_PANES:NORTH_KOREA_PANES;
   const [data,geojson]=await Promise.all([
     fetch(new URL("../assets/salvo-scenarios.json",import.meta.url)).then(response=>response.json()),
     fetch(new URL("../assets/countries.geo.json",import.meta.url)).then(response=>response.json())
@@ -43,8 +45,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const scenarios=data.scenarios.filter(item=>["iran","nk"].includes(item.id))
     .map(makeScenario);
   scenarios.forEach(item=>{
-    item.stopFrame=Math.min(...item.shots.map(shot=>
-      shot.launchFrame+STOP_FRACTION*shot.durationFrames));
+    const lastArrival=Math.max(...item.shots.map(shot=>
+      shot.launchFrame+shot.durationFrames));
+    item.lastArrivalFrame=lastArrival;
+    item.stopFrame=Math.min(item.cameraFrames.length-1,lastArrival+45);
   });
   const scene=new THREE.Scene();scene.background=new THREE.Color(0xffffff);
   const earth=makeEarth(geojson);scene.add(earth);
@@ -81,7 +85,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const overlay=document.createElement("canvas");
   overlay.className="salvo-overlay";host.append(overlay);
   const context=overlay.getContext("2d");
-  let width=1,height=1,ratio=1,stateIndex=0,elapsed=0,sitePulseSeconds=0,paused=true,destroyed=false;
+  let width=1,height=1,ratio=1,stateIndex=paneStates[0],paneIndex=0;
+  let elapsed=0,sitePulseSeconds=0,paused=true,destroyed=false;
   let raf=0,lastFrame=0;
   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frameNumber(scenario) {
@@ -128,7 +133,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       context.lineWidth=3.1;
       context.strokeStyle=gradient;
       context.lineCap="round";context.lineJoin="round";
-      context.globalAlpha=1;
+      const impactAge=frame-shot.launchFrame-shot.durationFrames;
+      context.globalAlpha=impactAge>=0?1-ease(clamp(impactAge/32)):1;
       context.beginPath();
       let drawing=false;
       for(let i=0;i<=count;i++) {
@@ -142,7 +148,18 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
         else context.lineTo(head.x,head.y);
       }
       context.stroke();
-      if(head.visible)circle(head.x,head.y,MISSILE_DOT_RADIUS_PX,MISSILE_BLACK_CSS,1);
+      if(head.visible&&impactAge<0)
+        circle(head.x,head.y,MISSILE_DOT_RADIUS_PX,MISSILE_BLACK_CSS,1);
+      if(head.visible&&impactAge>=0&&impactAge<30) {
+        const pulse=clamp(impactAge/30);
+        context.beginPath();
+        context.arc(head.x,head.y,4+22*ease(pulse),0,Math.PI*2);
+        context.strokeStyle=`rgba(40,40,40,${.85*(1-pulse)})`;
+        context.lineWidth=2.1;
+        context.globalAlpha=1;
+        context.stroke();
+        circle(head.x,head.y,5*(1-pulse),MISSILE_BLACK_CSS,1-pulse);
+      }
     }
   }
   function drawSites(scenario,view,frame) {
@@ -174,12 +191,16 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     if(stateIndex%4>=2)drawRoutes(scenario,view,frame);
     if(stateIndex%4>=1)drawSites(scenario,view,frame);
     context.globalAlpha=1;
-    host.dataset.stage=String(stateIndex+1);
+    host.dataset.stage=String(paneIndex+1);
+    host.dataset.sourceStage=String(stateIndex+1);
     host.dataset.scenario=scenario.id;
     host.dataset.missileCount=String(scenario.count);
     host.dataset.frame=frame.toFixed(2);
     host.dataset.launchFrames=scenario.shots.map(shot=>shot.launchFrame).join(",");
     host.dataset.stopFrame=scenario.stopFrame.toFixed(2);
+    host.dataset.lastArrivalFrame=scenario.lastArrivalFrame.toFixed(2);
+    host.dataset.impactCount=String(scenario.shots.filter(shot=>
+      frame>=shot.launchFrame+shot.durationFrames).length);
   }
   function tick(now) {
     if(paused||destroyed)return;
@@ -193,16 +214,18 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     lastFrame=performance.now();raf=requestAnimationFrame(tick);
   }
   function goToState(index) {
-    if(destroyed||index<0||index>=COUNT||index===stateIndex)return false;
-    stateIndex=index;sitePulseSeconds=0;elapsed=reducedMotion&&index%4===2?
-      scenarios[Math.floor(index/4)].stopFrame*.07/PLAYBACK_RATE:0;
-    onStateChange(index,COUNT);render();schedule();return true;
+    if(destroyed||index<0||index>=paneStates.length||index===paneIndex)return false;
+    paneIndex=index;stateIndex=paneStates[index];sitePulseSeconds=0;
+    elapsed=reducedMotion&&stateIndex%4===2?
+      scenarios[Math.floor(stateIndex/4)].stopFrame*.07/PLAYBACK_RATE:0;
+    onStateChange(index,paneStates.length);render();schedule();return true;
   }
   function jumpToState(index){
-    if(index<0||index>=COUNT)return;
-    stateIndex=index;sitePulseSeconds=index%4===1?0:2;elapsed=index%4===2?
-      scenarios[Math.floor(index/4)].stopFrame*.07/PLAYBACK_RATE:0;
-    onStateChange(index,COUNT);render();
+    if(index<0||index>=paneStates.length)return;
+    paneIndex=index;stateIndex=paneStates[index];
+    sitePulseSeconds=stateIndex%4===1?0:2;
+    elapsed=0;
+    onStateChange(index,paneStates.length);render();
   }
   function resize(){
     if(destroyed)return;
@@ -214,14 +237,14 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     render();
   }
   const observer=new ResizeObserver(resize);observer.observe(host);
-  onStateChange(0,COUNT);resize();
+  onStateChange(0,paneStates.length);resize();
   return {
-    stateCount:COUNT,getStateIndex:()=>stateIndex,
-    next:()=>goToState(stateIndex+1),previous:()=>goToState(stateIndex-1),
+    stateCount:paneStates.length,getStateIndex:()=>paneIndex,
+    next:()=>goToState(paneIndex+1),previous:()=>goToState(paneIndex-1),
     goToState,jumpToState,isTransitioning:()=>false,
     start(){if(!destroyed&&!document.hidden){paused=false;schedule();}},
     pause(){paused=true;cancelAnimationFrame(raf);raf=0;},
-    restart(){goToState(Math.floor(stateIndex/4)*4);},
+    restart(){jumpToState(0);},
     resize,
     destroy(){
       if(destroyed)return;destroyed=true;paused=true;cancelAnimationFrame(raf);

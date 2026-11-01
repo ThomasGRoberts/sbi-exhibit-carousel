@@ -1,5 +1,6 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js";
+import { createModelLink } from "./model-link.js";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
@@ -7,6 +8,19 @@ let routeVersion = 0;
 let displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
 let lastFullscreenExit = -Infinity;
 const moduleSession = Date.now().toString(36);
+const selectionKey = "sbi-exhibit-carousel-selection-v1";
+let selectedExhibitIds = new Set(exhibits.map(exhibit => exhibit.id));
+try {
+  const saved = JSON.parse(localStorage.getItem(selectionKey) || "null");
+  if (Array.isArray(saved)) selectedExhibitIds = new Set(saved.filter(id =>
+    exhibits.some(exhibit => exhibit.id === id)));
+} catch (error) {
+  console.warn("Exhibit selection could not be restored.", error);
+}
+function saveSelection() {
+  try { localStorage.setItem(selectionKey, JSON.stringify([...selectedExhibitIds])); }
+  catch (error) { console.warn("Exhibit selection could not be saved.", error); }
+}
 
 function element(tag, className = "", text = "") {
   const node = document.createElement(tag);
@@ -42,10 +56,26 @@ function makeBackLink(href) {
 
 function exhibitRow(exhibit) {
   const presenter = presenters.find(item => item.id === exhibit.presenterId);
-  const row = element("a", "sequence-row");
-  row.href = exhibitHref(exhibit);
-  row.setAttribute("aria-label", "Open Exhibit " + String(exhibit.number).padStart(2, "0") +
+  const row = element("div", "sequence-row");
+  row.dataset.included = String(selectedExhibitIds.has(exhibit.id));
+  const link = element("a", "sequence-row-link");
+  link.href = exhibitHref(exhibit);
+  link.setAttribute("aria-label", "Open Exhibit " + String(exhibit.number).padStart(2, "0") +
     ": " + exhibit.title);
+  const checkbox = element("input", "sequence-checkbox");
+  checkbox.type = "checkbox";
+  checkbox.checked = selectedExhibitIds.has(exhibit.id);
+  checkbox.setAttribute("aria-label", "Include Exhibit " + String(exhibit.number).padStart(2, "0") +
+    " in carousel");
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) selectedExhibitIds.add(exhibit.id);
+    else selectedExhibitIds.delete(exhibit.id);
+    row.dataset.included = String(checkbox.checked);
+    saveSelection();
+    const summary = document.querySelector(".selection-summary");
+    if (summary) summary.textContent = `${selectedExhibitIds.size} of ${exhibits.length} exhibits in carousel`;
+  });
+  row.append(checkbox, link);
   const portrait = element("img", "sequence-avatar");
   portrait.src = presenter.photo;
   portrait.alt = "";
@@ -65,12 +95,14 @@ function exhibitIndex() {
   main.style.setProperty("--exhibit-count", String(Math.max(1, exhibits.length)));
   const content = element("div", "dashboard-content");
   const list = element("div", "sequence-list");
+  const summary = element("p", "selection-summary",
+    `${selectedExhibitIds.size} of ${exhibits.length} exhibits in carousel`);
   if (exhibits.length === 0) {
     list.append(element("p", "empty-state", "No exhibits yet."));
   } else {
     exhibits.forEach(exhibit => list.append(exhibitRow(exhibit)));
   }
-  content.append(list);
+  content.append(summary, list);
   main.append(content);
   const mark = element("img", "directory-logo");
   mark.src = "assets/ESPL.png"; mark.alt = ""; mark.setAttribute("aria-hidden", "true");
@@ -117,7 +149,8 @@ async function deck(current, version) {
   const heading = element("h1", "exhibit-heading");
   const exhibitSelect = element("select", "exhibit-select");
   exhibitSelect.setAttribute("aria-label", "Jump to exhibit");
-  for (const item of exhibits) {
+  for (const item of exhibits.filter(item =>
+    selectedExhibitIds.has(item.id) || item.id === exhibit.id)) {
     const option = element("option", "", "Exhibit " +
       String(item.number).padStart(2, "0") + ": " + item.title);
     option.value = item.id;
@@ -148,7 +181,7 @@ async function deck(current, version) {
   const commentLog = element("a", "comment-log-link external-metadata-link");
   commentLog.append(element("span", "", "Comment Log"));
   commentLog.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 18 18" aria-hidden="true" focusable="false" class="external-link-icon"><path class="external-link-icon__box" d="M7.25 4.25H4.5A1.75 1.75 0 0 0 2.75 6v7.5a1.75 1.75 0 0 0 1.75 1.75H12a1.75 1.75 0 0 0 1.75-1.75v-2.75"></path><g class="external-link-icon__arrow"><path d="M9.25 2.75h6v6"></path><path d="m8 10 7.25-7.25"></path></g></svg>');
-  commentLog.href = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
+  commentLog.href = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQgG1AdZae1QX_oComKpzIleXmk4dJE64nMbRhP4sY0dmVx7Wb_MpEpFllrsmy7Jo26TyHCIjLcjCX4/pubhtml";
   commentLog.target = "_blank";
   commentLog.rel = "noopener noreferrer";
   let copyTimer;
@@ -192,6 +225,8 @@ async function deck(current, version) {
   logo.alt = "";
   logo.setAttribute("aria-hidden", "true");
   pane.append(host, logo);
+  const disposeModelLink = createModelLink(pane);
+  main.disposeModelLink = disposeModelLink;
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
   navigationHint.innerHTML = '<span><kbd>Space</kbd> or click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
@@ -244,6 +279,7 @@ async function deck(current, version) {
 
 function render() {
   routeVersion += 1;
+  app.querySelector(".deck")?.disposeModelLink?.();
   activeExhibit?.destroy();
   activeExhibit = null;
   const current = route();
@@ -261,7 +297,14 @@ function navigateExhibit(direction) {
   const handled = direction > 0 ? activeExhibit.next?.() : activeExhibit.previous?.();
   if (handled) return;
   const position = exhibits.findIndex(item => item.id === current.exhibit.id);
-  const next = exhibits[position + direction];
+  let next = null;
+  for (let index = position + direction; index >= 0 && index < exhibits.length;
+      index += direction) {
+    if (selectedExhibitIds.has(exhibits[index].id)) {
+      next = exhibits[index];
+      break;
+    }
+  }
   if (next) location.hash = exhibitHref(next, direction < 0);
 }
 

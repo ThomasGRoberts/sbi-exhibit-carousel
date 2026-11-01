@@ -1,5 +1,5 @@
 """
-North Korea: 10 ICBMs from 6 launch sites -> 10 generic US points
+North Korea: 10 ICBMs from 6 launch sites -> mainland US, Hawaii, and Guam
 
 Renders a transparent animated GIF + animated PNG of the salvo on an orthographic globe
 (Natural Earth 10m borders in ne10.json). See README.md.
@@ -56,7 +56,8 @@ print('points',len(ALL),flush=True)
 # ---------- scenario ----------
 sites=[(39.66026497,124.7050276),(40.301111,125.268056),(41.369883,126.913631),(40.483324,126.501814),(39.449886,126.259682),(38.91597,125.92161)]
 SV=[ll(a,b) for a,b in sites]
-targets=[ll(*t) for t in [(47,-120),(38,-121),(36,-115),(33,-112),(31,-98),(39,-105),(42,-88),(36,-86),(39,-78),(42,-71)]]
+targets=[ll(*t) for t in [(21.3069,-157.8583),(13.4443,144.7937),
+  (36,-115),(33,-112),(31,-98),(39,-105),(42,-88),(36,-86),(39,-78),(42,-71)]]
 NM=10; PEAK=[0.155]*NM
 def ptraj(o,tg,s,pk): return slerp(o,tg,s)*(1+pk*np.sin(np.pi*s)**0.8)
 def arcs_cross(a1,a2,b1,b2):

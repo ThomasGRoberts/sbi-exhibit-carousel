@@ -6,7 +6,8 @@ import {
 import { makeConstellation } from "./model-geometry.js";
 import { CAROUSEL_PLAYBACK_MULTIPLIER } from "../config.js";
 
-const STATE_COUNT = 7;
+const PANE_STATES = [0, 1, 2, 4, 5, 6];
+const STATE_COUNT = PANE_STATES.length;
 const RAD = Math.PI / 180;
 const SIM_SECONDS_PER_REAL_SECOND = .02 * CAROUSEL_PLAYBACK_MULTIPLIER * 3600;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -144,7 +145,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   let current=copyVisual(states[0]);
   current.rotation-=.42; current.pitch-=.07; current.distance+=.38;
   current.fill=[0,0]; current.line=[0,0]; current.draw=[0,0];
-  let stateIndex=0;
+  let stateIndex=0,paneIndex=0;
   let transition={from:copyVisual(current),to:copyVisual(states[0]),
     fromIndex:-1,toIndex:0,elapsed:0,duration:2750};
   let paused=true,destroyed=false,raf=0,lastFrame=0,waveSeconds=0,lastCoverageAt=0;
@@ -247,7 +248,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       result.horizon=ease(0,.92,progress);
       result.distance=mix(spec.from.distance,spec.to.distance,
         ease(0,.85,progress));
-    } else if(from===3&&to===4) {
+    } else if((from===3||from===2)&&to===4) {
       for(const key of ["fill","line","draw","target","gold","orbit","satellite"])
         result[key][0]=spec.from[key][0]*(1-ease(0,.28,progress));
       result.horizon=1-ease(0,.32,progress);
@@ -322,27 +323,26 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     raf=requestAnimationFrame(frame);
   }
   function goToState(index) {
-    if(destroyed||index<0||index>=STATE_COUNT||index===stateIndex) return false;
+    if(destroyed||index<0||index>=STATE_COUNT||index===paneIndex) return false;
     const previous=stateIndex;
-    stateIndex=index;
-    if([1,2,5,6].includes(index)) waveSeconds=0;
-    if((index===2&&previous!==3)||(index===6&&previous!==5)) {
-      const scenario=index<4?0:1;
+    paneIndex=index;stateIndex=PANE_STATES[index];
+    if([1,2,5,6].includes(stateIndex)) waveSeconds=0;
+    if((stateIndex===2&&previous!==3)||(stateIndex===6&&previous!==5)) {
+      const scenario=stateIndex<4?0:1;
       simulationSeconds[scenario]=0;
       constellations[scenario].update(0,true);
     }
-    const duration=previous===3&&index===4?3300:
-      [1,5].includes(index)?2700:
-      index===3?1550:
-      [2,6].includes(index)?2100:1600;
-    transition={from:copyVisual(current),to:copyVisual(states[index]),
-      fromIndex:previous,toIndex:index,elapsed:0,duration:reducedMotion?1:duration};
+    const duration=(previous===3||previous===2)&&stateIndex===4?3300:
+      [1,5].includes(stateIndex)?2700:
+      [2,6].includes(stateIndex)?2100:1600;
+    transition={from:copyVisual(current),to:copyVisual(states[stateIndex]),
+      fromIndex:previous,toIndex:stateIndex,elapsed:0,duration:reducedMotion?1:duration};
     host.dataset.stage=String(index+1);
-    host.dataset.targetCount=String(index<4?modelData.small.targetIndices.length:
+    host.dataset.targetCount=String(stateIndex<4?modelData.small.targetIndices.length:
       modelData.large.targetIndices.length);
-    host.dataset.satelliteCount=String(index<4?constellations[0].satelliteCount:
+    host.dataset.satelliteCount=String(stateIndex<4?constellations[0].satelliteCount:
       constellations[1].satelliteCount);
-    if(![2,3,6].includes(index)) {
+    if(![2,3,6].includes(stateIndex)) {
       delete host.dataset.activeSatelliteCount;
       delete host.dataset.simulationSeconds;
     }
@@ -352,16 +352,17 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   }
   function jumpToState(index) {
     if(index<0||index>=STATE_COUNT) return;
-    stateIndex=index; current=copyVisual(states[index]); transition=null;
+    paneIndex=index;stateIndex=PANE_STATES[index];
+    current=copyVisual(states[stateIndex]); transition=null;
     waveSeconds=1000000;
-    if([2,3,6].includes(index)) {
-      const scenario=index<4?0:1;
+    if([2,3,6].includes(stateIndex)) {
+      const scenario=stateIndex<4?0:1;
       constellations[scenario].update(simulationSeconds[scenario],true);
     }
     host.dataset.stage=String(index+1);
-    host.dataset.targetCount=String(index<4?modelData.small.targetIndices.length:
+    host.dataset.targetCount=String(stateIndex<4?modelData.small.targetIndices.length:
       modelData.large.targetIndices.length);
-    host.dataset.satelliteCount=String(index<4?constellations[0].satelliteCount:
+    host.dataset.satelliteCount=String(stateIndex<4?constellations[0].satelliteCount:
       constellations[1].satelliteCount);
     onStateChange(index,STATE_COUNT);
     draw();
@@ -407,15 +408,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   resize();
   return {
     stateCount:STATE_COUNT,
-    getStateIndex:()=>stateIndex,
+    getStateIndex:()=>paneIndex,
     goToState,jumpToState,
     isTransitioning:()=>Boolean(transition),
-    next:()=>goToState(stateIndex+1),
-    previous:()=>goToState(stateIndex-1),
+    next:()=>goToState(paneIndex+1),
+    previous:()=>goToState(paneIndex-1),
     start(){if(destroyed||document.hidden)return;paused=false;schedule();},
     pause(){paused=true;cancelAnimationFrame(raf);raf=0;},
     restart(){
-      if(stateIndex!==0){goToState(0);return;}
+      if(paneIndex!==0){goToState(0);return;}
       current=copyVisual(states[0]);
       current.rotation-=.42;current.pitch-=.07;current.distance+=.38;
       current.fill=[0,0];current.line=[0,0];current.draw=[0,0];

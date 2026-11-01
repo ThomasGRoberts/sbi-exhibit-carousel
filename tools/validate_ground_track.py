@@ -37,6 +37,6 @@ assert 1 < ordinary_shift < 359
 # 1080° of inertial orbital motion minus 360° of terrestrial rotation.
 unwrapped_repeat = 3 * 360 - 360
 assert unwrapped_repeat == 720
-print(f"Exhibit 07: 3/1 repeat, altitude {A-R:.3f} km, period {PERIOD:.3f} s, "
+print(f"Exhibit 06: 3/1 repeat, altitude {A-R:.3f} km, period {PERIOD:.3f} s, "
       f"inclination 50°, closure <1e-11°, unwrapped longitude +720°.")
 print(f"Ordinary 700-km comparison: 3-orbit Earth-rotation shift {ordinary_shift:.3f}°.")

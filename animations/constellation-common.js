@@ -145,6 +145,8 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
   host.append(renderer.domElement);
   const overlay=document.createElement("canvas");overlay.className="constellation-coverage";
   host.append(overlay);const ctx=overlay.getContext("2d");
+  const skyCanvas=document.createElement("canvas");skyCanvas.className="gps-sky";
+  host.append(skyCanvas);const skyCtx=skyCanvas.getContext("2d");
   const mapLookup=mollweideLookup();
   const mapScene=new THREE.Scene();mapScene.background=new THREE.Color(0xffffff);
   const mapCamera=new THREE.OrthographicCamera(-1,1,1,-1,.01,10);
@@ -272,7 +274,7 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
   let width=1,height=1,ratio=1,coverageValues=null;
   let coverageNext=null,coverageStart=0,coverageEnd=0,coverageColors=[];
   let displayMax=1;
-  let positionsTime=NaN;
+  let positionsTime=NaN,skyBlend=0;
   const isMap=()=>config.mapStates.includes(stateIndex);
   function updatePositions(forceCpu=false) {
     const spin=spinAt(clock);
@@ -378,8 +380,57 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
     ctx.textAlign="right";ctx.fillText(String(displayMax),
       legendX+legendWidth,legendY+23);ctx.textAlign="left";
   }
+  function drawSky() {
+    if(config.kind!=="gps")return;
+    skyCtx.setTransform(ratio,0,0,ratio,0,0);
+    skyCtx.fillStyle="#fff";skyCtx.fillRect(0,0,width,height);
+    const cx=width/2,cy=height*.51,radius=Math.min(width*.29,height*.39);
+    skyCtx.fillStyle="#fafafa";skyCtx.beginPath();skyCtx.arc(cx,cy,radius,0,TWO_PI);skyCtx.fill();
+    skyCtx.strokeStyle="#a6a6a6";skyCtx.lineWidth=1.3;skyCtx.stroke();
+    skyCtx.strokeStyle="#dedede";skyCtx.lineWidth=1;
+    for(const elevation of [30,60]){
+      skyCtx.beginPath();skyCtx.arc(cx,cy,radius*(90-elevation)/90,0,TWO_PI);skyCtx.stroke();
+    }
+    const maskRadius=radius*80/90;
+    skyCtx.setLineDash([4,5]);skyCtx.strokeStyle="rgba(184,139,19,.55)";
+    skyCtx.beginPath();skyCtx.arc(cx,cy,maskRadius,0,TWO_PI);skyCtx.stroke();skyCtx.setLineDash([]);
+    skyCtx.textAlign="center";skyCtx.fillStyle="#555";
+    skyCtx.font="600 13px Roboto,Arial,sans-serif";
+    skyCtx.fillText("Sky above Geneva",cx,height*.095);
+    skyCtx.font="11px Roboto,Arial,sans-serif";
+    for(const [label,dx,dy] of [["N",0,-radius-15],["E",radius+17,4],
+      ["S",0,radius+24],["W",-radius-17,4]])skyCtx.fillText(label,cx+dx,cy+dy);
+    const spin=spinAt(clock),up=receiverNormal.clone().applyAxisAngle(new THREE.Vector3(0,1,0),spin);
+    const east=new THREE.Vector3(-Math.sin(receiverLon*RAD),0,-Math.cos(receiverLon*RAD))
+      .applyAxisAngle(new THREE.Vector3(0,1,0),spin);
+    const north=new THREE.Vector3(-Math.sin(receiverLat*RAD)*Math.cos(receiverLon*RAD),
+      Math.cos(receiverLat*RAD),Math.sin(receiverLat*RAD)*Math.sin(receiverLon*RAD))
+      .applyAxisAngle(new THREE.Vector3(0,1,0),spin);
+    let count=0;
+    for(let i=0;i<config.elements.length;i++){
+      const sight=new THREE.Vector3(positionValues[i*3],positionValues[i*3+1],
+        positionValues[i*3+2]).sub(up);
+      const length=sight.length(),vertical=sight.dot(up)/length;
+      const elevation=Math.asin(clamp(vertical,-1,1));
+      if(elevation<0)continue;
+      const horizontal=Math.max(1e-8,Math.cos(elevation));
+      const radial=(Math.PI/2-elevation)/(Math.PI/2)*radius;
+      const x=cx+radial*sight.dot(east)/length/horizontal;
+      const y=cy-radial*sight.dot(north)/length/horizontal;
+      const inMask=elevation>=10*RAD;
+      if(inMask)count++;
+      skyCtx.beginPath();skyCtx.arc(x,y,inMask?7:4,0,TWO_PI);
+      skyCtx.fillStyle=inMask?"#b88b13":"#bdbdbd";skyCtx.fill();
+      if(inMask){skyCtx.strokeStyle="#725411";skyCtx.lineWidth=.8;skyCtx.stroke();}
+    }
+    skyCtx.fillStyle="#777";skyCtx.font="11px Roboto,Arial,sans-serif";
+    skyCtx.fillText("Gold satellites are at least 10° above the horizon",cx,height*.94);
+    host.dataset.skyVisibleSatellites=String(count);
+    host.dataset.skyProjection="azimuthal-equidistant";
+  }
   function updateReceiver() {
-    const active=config.kind==="gps"&&stateIndex===receiverStage;
+    const active=config.kind==="gps"&&
+      (stateIndex===receiverStage||stateIndex===config.skyStage);
     receiver.visible=active;sightLines.visible=active;
     if(!config.kind||config.kind!=="gps")return;
     const position=receiverNormal.clone().applyAxisAngle(new THREE.Vector3(0,1,0),spinAt(clock));
@@ -414,6 +465,9 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
     host.dataset.simulationSeconds=clock.toFixed(2);
     overlay.style.display=isMap()?"block":"none";
     note.style.display=!isMap()&&config.noteStates?.includes(stateIndex)?"block":"none";
+    skyCanvas.style.display=config.kind==="gps"&&skyBlend>0?"block":"none";
+    skyCanvas.style.opacity=String(skyBlend);
+    renderer.domElement.style.opacity=String(config.kind==="gps"?1-skyBlend:1);
     if(isMap()) {
       if(!coverageValues||clock>=coverageEnd)refreshCoveragePair();
       mapMaterial.uniforms.blend.value=clamp((clock-coverageStart)/
@@ -429,6 +483,7 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
     camera.position.set(...config.cameraPosition);camera.lookAt(0,0,0);
     camera.updateProjectionMatrix();camera.updateMatrixWorld();
     updateReceiver();
+    if(skyBlend>0)drawSky();
     orbitLines.visible=config.orbitVisible(stateIndex);
     if(orbitLines.visible) {
       const reveal=stateIndex===1?Math.min(1,elapsed/(config.kind==="starlink"?4.2:1.8)):1;
@@ -459,6 +514,8 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
     if(paused||destroyed)return;
     const delta=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
     elapsed+=delta;
+    if(config.kind==="gps")skyBlend=clamp(skyBlend+
+      (stateIndex===config.skyStage?1:-1)*delta/1.5,0,1);
     clock+=delta*(stateIndex>=receiverStage?config.playbackRate:
       (config.introPlaybackRate??400));
     zoomElapsed=Math.min(1.8,zoomElapsed+delta);
@@ -476,6 +533,7 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
   function jumpToState(index) {
     if(index<0||index>=stateCount)return;
     stateIndex=index;elapsed=3;coverageValues=null;coverageNext=null;
+    if(config.kind==="gps")skyBlend=index===config.skyStage?1:0;
     halfFrom=halfTo=index===0?
       (config.introHalfHeight??config.halfHeight*.9):config.halfHeight;
     currentHalf=halfTo;zoomElapsed=1.8;
@@ -487,6 +545,8 @@ export async function createConstellationExhibit(host,config,{onStateChange=()=>
     ratio=Math.min(devicePixelRatio||1,2);
     overlay.width=Math.round(width*ratio);overlay.height=Math.round(height*ratio);
     overlay.style.width=width+"px";overlay.style.height=height+"px";
+    skyCanvas.width=Math.round(width*ratio);skyCanvas.height=Math.round(height*ratio);
+    skyCanvas.style.width=width+"px";skyCanvas.style.height=height+"px";
     const mapWidth=Math.min(width*.9,height*1.72),mapHeight=mapWidth/2;
     mapCamera.left=-width/2;mapCamera.right=width/2;
     mapCamera.top=height/2;mapCamera.bottom=-height/2;mapCamera.updateProjectionMatrix();
