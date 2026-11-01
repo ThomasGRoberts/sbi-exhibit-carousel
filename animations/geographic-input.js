@@ -136,7 +136,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const states=[
     state(first,{distance:first.introDistance,fill:[1,0],line:[1,0],draw:[1,0],target:[0,0],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
     state(first,{distance:first.samplingDistance,fill:[0,0],line:[0,0],draw:[0,0],target:[1,0],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
-    state(first,{distance:first.orbitDistance,fill:[1,0],line:[.66,0],draw:[1,0],target:[0,0],gold:[1,1],orbit:[1,0],satellite:[1,0]}),
+    state(first,{distance:first.orbitDistance,horizon:1,fill:[1,0],line:[.66,0],draw:[1,0],target:[0,0],gold:[1,1],orbit:[1,0],satellite:[1,0]}),
     state(first,{distance:first.orbitDistance,horizon:1,fill:[1,0],line:[.66,0],draw:[1,0],target:[0,0],gold:[1,1],orbit:[1,0],satellite:[1,0]}),
     state(second,{distance:second.introDistance,fill:[0,1],line:[0,1],draw:[0,1],target:[0,0],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
     state(second,{distance:second.samplingDistance,fill:[0,0],line:[0,0],draw:[0,0],target:[0,1],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
@@ -151,7 +151,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   let paused=true,destroyed=false,raf=0,lastFrame=0,waveSeconds=0,lastCoverageAt=0;
   let currentLookTarget=new THREE.Vector3();
   const simulationSeconds=[0,0];
-  const goldRadii=[5.7,5.7],goldSizes=[64,64],sweepSeconds=[4.4,3.8];
+  const goldRadii=[5.7,5.7],goldSizes=[64,64],sweepSeconds=[2.0,2.3];
   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   if(reducedMotion) transition.duration=1;
 
@@ -288,7 +288,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   function waveActive() {
     const index=stateIndex<4?0:1;
     const gold=stateIndex===1||stateIndex===5;
-    return gold&&waveSeconds<sweepSeconds[index]+4.0;
+    return gold&&waveSeconds<sweepSeconds[index]+1.4;
   }
   function needsFrames() {
     return Boolean(transition)||[2,3,6].includes(stateIndex)||waveActive();
@@ -332,8 +332,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       simulationSeconds[scenario]=0;
       constellations[scenario].update(0,true);
     }
-    const duration=(previous===3||previous===2)&&stateIndex===4?3300:
-      [1,5].includes(stateIndex)?2700:
+    const duration=(previous===3||previous===2)&&stateIndex===4?1700:
+      [1,5].includes(stateIndex)?1200:
       [2,6].includes(stateIndex)?2100:1600;
     transition={from:copyVisual(current),to:copyVisual(states[stateIndex]),
       fromIndex:previous,toIndex:stateIndex,elapsed:0,duration:reducedMotion?1:duration};

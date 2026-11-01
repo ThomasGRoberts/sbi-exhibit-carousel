@@ -1,14 +1,24 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js";
 import { createModelLink } from "./model-link.js";
+import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js";
+import { buildTitleEditor } from "./title-editor.js";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
+let activeStep = null;
+let phaseTimer = 0;
+let phaseToken = 0;
+let transitionLayer = null;
 let routeVersion = 0;
 let displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
 let lastFullscreenExit = -Infinity;
 const moduleSession = Date.now().toString(36);
 const selectionKey = "sbi-exhibit-carousel-selection-v1";
+const commentLogUrl = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
+let titleConfiguration = loadTitleConfiguration();
+const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds, titleConfiguration);
 let selectedExhibitIds = new Set(exhibits.map(exhibit => exhibit.id));
 try {
   const saved = JSON.parse(localStorage.getItem(selectionKey) || "null");
@@ -31,6 +41,12 @@ function element(tag, className = "", text = "") {
 
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (parts[0] === "present") {
+    const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
+    if (step?.kind === "title") return {page:"title", step};
+    if (step) return {page:"exhibit", exhibit:step.exhibit,
+      requestedState:step.start, startAtEnd:false, step};
+  }
   const id = parts[0] === "exhibit" ? parts[1] :
     parts[0] === "catalog" ? parts[3] :
     presenters.some(p => p.id === parts[0]) ? parts[1] : null;
@@ -39,7 +55,47 @@ function route() {
   const requestedState = match && exhibit && Number(match[1]) === exhibit.number ?
     Number(match[2]) - 1 : null;
   return { page: exhibit ? "exhibit" : "index", exhibit,
-    startAtEnd: parts.at(-1) === "last", requestedState };
+    startAtEnd: parts.at(-1) === "last", requestedState,
+    step: exhibit ? steps().find(item => item.kind === "exhibit" &&
+      item.exhibit.id === exhibit.id &&
+      item.panes.includes(requestedState ?? (parts.at(-1) === "last" ?
+        exhibit.states.length-1 : 0))) : null };
+}
+
+function stepHref(step) { return "#/present/" + encodeURIComponent(step.id); }
+function replaceView(main) {
+  app.replaceChildren(main, ...(transitionLayer ? [transitionLayer] : []));
+}
+function showTransition() {
+  if (transitionLayer) return;
+  transitionLayer = element("div", "presentation-transition");
+  app.append(transitionLayer);
+}
+function clearTransition() {
+  const layer = transitionLayer;
+  if (!layer) return;
+  transitionLayer = null;
+  layer.classList.add("is-leaving");
+  setTimeout(() => layer.remove(), 240);
+}
+function cancelPhases() {
+  phaseToken++;
+  clearTimeout(phaseTimer);
+  phaseTimer = 0;
+}
+function startStepPhases(step, initialIndex = step.start) {
+  cancelPhases();
+  if (!step || step.kind !== "exhibit" || !activeExhibit) return;
+  const token = phaseToken;
+  const position = step.panes.indexOf(initialIndex);
+  if (position < 0 || position >= step.panes.length-1) return;
+  const duration = phaseDurations[step.exhibit.id]?.[initialIndex] ?? 1800;
+  phaseTimer = setTimeout(() => {
+    if (token !== phaseToken || activeStep?.id !== step.id || !activeExhibit) return;
+    const nextIndex = step.panes[position+1];
+    activeExhibit.goToState?.(nextIndex);
+    startStepPhases(step, nextIndex);
+  }, duration);
 }
 
 function exhibitHref(exhibit, atEnd = false) {
@@ -74,6 +130,9 @@ function exhibitRow(exhibit) {
     saveSelection();
     const summary = document.querySelector(".selection-summary");
     if (summary) summary.textContent = `${selectedExhibitIds.size} of ${exhibits.length} exhibits in carousel`;
+    const launch = document.querySelector(".landing-action-primary");
+    if (launch) launch.disabled = selectedExhibitIds.size === 0;
+    document.querySelector(".title-editor")?.refresh?.();
   });
   row.append(checkbox, link);
   const portrait = element("img", "sequence-avatar");
@@ -102,12 +161,48 @@ function exhibitIndex() {
   } else {
     exhibits.forEach(exhibit => list.append(exhibitRow(exhibit)));
   }
-  content.append(summary, list);
+  const tabs = element("nav", "dashboard-tabs");
+  const exhibitsTab = element("button", "dashboard-tab is-active", "Exhibits");
+  const configTab = element("button", "dashboard-tab", "Configurations");
+  exhibitsTab.type = configTab.type = "button";
+  const editor = buildTitleEditor(exhibits, selectedExhibitIds, titleConfiguration, updated => {
+    titleConfiguration = updated;
+    try { localStorage.setItem(TITLE_STORAGE_KEY, JSON.stringify(updated)); }
+    catch (error) { console.warn("Presentation titles could not be saved.", error); }
+  }, step => { location.hash = stepHref(step); });
+  editor.hidden = true;
+  exhibitsTab.addEventListener("click", () => {
+    list.hidden = summary.hidden = false; editor.hidden = true;
+    exhibitsTab.classList.add("is-active"); configTab.classList.remove("is-active");
+  });
+  configTab.addEventListener("click", () => {
+    list.hidden = summary.hidden = true; editor.hidden = false;
+    configTab.classList.add("is-active"); exhibitsTab.classList.remove("is-active");
+    editor.refresh();
+  });
+  tabs.append(exhibitsTab, configTab);
+  const actions = element("div", "landing-actions");
+  const launch = element("button", "landing-action landing-action-primary", "Launch Carousel");
+  launch.type = "button";
+  launch.disabled = selectedExhibitIds.size === 0;
+  launch.addEventListener("click", () => {
+    const first = steps()[0];
+    if (!first) return;
+    displayMode = "presentation";
+    // Fullscreen must be requested in the click's user-activation task.
+    if (app.requestFullscreen) app.requestFullscreen().catch(error =>
+      console.warn("Browser full screen unavailable; using presentation layout.", error));
+    location.hash = stepHref(first);
+  });
+  const comment = element("a", "landing-action landing-action-secondary", "Comment on Carousel");
+  comment.href = commentLogUrl; comment.target = "_blank"; comment.rel = "noopener noreferrer";
+  actions.append(launch, comment);
+  content.append(tabs, summary, list, editor, actions);
   main.append(content);
   const mark = element("img", "directory-logo");
   mark.src = "assets/ESPL.png"; mark.alt = ""; mark.setAttribute("aria-hidden", "true");
   main.append(mark);
-  app.replaceChildren(main);
+  replaceView(main);
 }
 
 async function toggleFullscreen(main) {
@@ -130,6 +225,47 @@ async function toggleFullscreen(main) {
   }
   displayMode = "presentation";
   main.showDisplayMode();
+}
+
+function titleSlide(step) {
+  const { slide } = step;
+  const main = element("main", "title-slide");
+  const toolbar = element("div", "preview-toolbar");
+  const back = makeBackLink("#/");
+  const fullButton = element("button", "fullscreen-button");
+  fullButton.type = "button";
+  fullButton.setAttribute("aria-label", "Toggle full screen");
+  fullButton.textContent = "⛶";
+  toolbar.append(back, fullButton);
+  const frame = element("section", "title-frame");
+  const banner = element("div", "title-banner");
+  const block = element("div", "title-block");
+  block.append(element("h1", "", slide.title));
+  if (slide.subtitle) block.append(element("p", "title-subtitle", slide.subtitle));
+  if (slide.type === "agenda") {
+    const list = element("ol", "title-agenda");
+    (slide.agenda || []).forEach((item, index) => {
+      const row = element("li", index === slide.highlight ? "is-highlighted" : "", item);
+      list.append(row);
+    });
+    block.append(list);
+  }
+  frame.append(banner, block);
+  if (slide.action === "model") {
+    main.disposeModelLink = createModelLink(frame);
+    frame.querySelector(".model-link")?.classList.add("is-arrived");
+  }
+  const hint = element("div", "title-navigation-hint", "Space or → next     ← previous");
+  main.append(toolbar,frame,hint);
+  replaceView(main);
+  main.showDisplayMode = () =>
+    main.classList.toggle("is-presenting", displayMode === "presentation");
+  main.showDisplayMode();
+  fullButton.addEventListener("click", () => toggleFullscreen(main));
+  frame.addEventListener("click", event => {
+    if (!event.target.closest("a,button") && event.button === 0) navigateExhibit(1);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(clearTransition));
 }
 
 async function deck(current, version) {
@@ -181,7 +317,7 @@ async function deck(current, version) {
   const commentLog = element("a", "comment-log-link external-metadata-link");
   commentLog.append(element("span", "", "Comment Log"));
   commentLog.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 18 18" aria-hidden="true" focusable="false" class="external-link-icon"><path class="external-link-icon__box" d="M7.25 4.25H4.5A1.75 1.75 0 0 0 2.75 6v7.5a1.75 1.75 0 0 0 1.75 1.75H12a1.75 1.75 0 0 0 1.75-1.75v-2.75"></path><g class="external-link-icon__arrow"><path d="M9.25 2.75h6v6"></path><path d="m8 10 7.25-7.25"></path></g></svg>');
-  commentLog.href = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
+  commentLog.href = commentLogUrl;
   commentLog.target = "_blank";
   commentLog.rel = "noopener noreferrer";
   let copyTimer;
@@ -234,7 +370,7 @@ async function deck(current, version) {
   const error = element("p", "preview-error");
   error.hidden = true;
   main.append(toolbar, stage, error);
-  app.replaceChildren(main);
+  replaceView(main);
 
   function applyDisplayMode() {
     main.classList.toggle("is-presenting", displayMode === "presentation");
@@ -268,51 +404,67 @@ async function deck(current, version) {
     else if (requestedState !== null && requestedState >= 0 && requestedState < instance.stateCount)
       instance.jumpToState?.(requestedState);
     instance.start();
+    activeStep = current.step;
+    if (current.step) startStepPhases(current.step,
+      startAtEnd ? current.step.end :
+        current.step.panes.includes(requestedState) ? requestedState : current.step.start);
     pane.classList.add("is-ready");
+    requestAnimationFrame(() => requestAnimationFrame(clearTransition));
   } catch (problem) {
     if (version !== routeVersion) return;
     console.error(problem);
     error.hidden = false;
     error.textContent = "Exhibit could not start: " + problem.message;
+    clearTransition();
   }
 }
 
 function render() {
   routeVersion += 1;
-  app.querySelector(".deck")?.disposeModelLink?.();
+  cancelPhases();
+  const current = route();
+  if (current.page !== "index" && app.firstElementChild) showTransition();
+  app.querySelector(".deck, .title-slide")?.disposeModelLink?.();
   activeExhibit?.destroy();
   activeExhibit = null;
-  const current = route();
   if (current.page === "exhibit") {
     deck(current, routeVersion);
+  } else if (current.page === "title") {
+    activeStep = current.step;
+    titleSlide(current.step);
   } else {
+    activeStep = null;
+    if (document.fullscreenElement === app) document.exitFullscreen().catch(console.warn);
     displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
     exhibitIndex(current);
+    clearTransition();
   }
 }
 
 function navigateExhibit(direction) {
   const current = route();
-  if (current.page !== "exhibit" || !activeExhibit) return;
-  const handled = direction > 0 ? activeExhibit.next?.() : activeExhibit.previous?.();
-  if (handled) return;
-  const position = exhibits.findIndex(item => item.id === current.exhibit.id);
-  let next = null;
-  for (let index = position + direction; index >= 0 && index < exhibits.length;
-      index += direction) {
-    if (selectedExhibitIds.has(exhibits[index].id)) {
-      next = exhibits[index];
-      break;
-    }
-  }
-  if (next) location.hash = exhibitHref(next, direction < 0);
+  if (!["exhibit","title"].includes(current.page)) return;
+  const sequence = steps();
+  const position = sequence.findIndex(item => item.id === current.step?.id);
+  if (position < 0) return;
+  const next = sequence[position + direction];
+  if (!next) return;
+  cancelPhases();
+  if (next.kind === "exhibit" && current.page === "exhibit" &&
+      next.exhibit.id === current.exhibit.id && activeExhibit) {
+    activeStep = next;
+    if (direction < 0) activeExhibit.jumpToState?.(next.end);
+    else activeExhibit.goToState?.(next.start);
+    history.replaceState(null, "", stepHref(next));
+    if (direction > 0) startStepPhases(next);
+  } else location.hash = stepHref(next);
 }
 
 window.addEventListener("hashchange", render);
 document.addEventListener("fullscreenchange", () => {
   displayMode = document.fullscreenElement === app ? "presentation" : "preview";
   if (displayMode === "preview") lastFullscreenExit = performance.now();
-  app.querySelector(".deck")?.showDisplayMode();
+  app.querySelector(".deck, .title-slide")?.showDisplayMode();
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) activeExhibit?.pause();
@@ -321,7 +473,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("keydown", event => {
   if (event.target.closest?.("input, textarea, select")) return;
   const current = route();
-  if (current.page !== "exhibit" ||
+  if (!["exhibit","title"].includes(current.page) ||
     !["Space", "ArrowRight", "ArrowLeft", "Escape", "KeyF"].includes(event.code)) return;
   event.preventDefault();
   if (event.code === "Escape") {
@@ -329,12 +481,12 @@ window.addEventListener("keydown", event => {
     else if (performance.now() - lastFullscreenExit < 250) return;
     else if (displayMode === "presentation") {
       displayMode = "preview";
-      app.querySelector(".deck")?.showDisplayMode();
+      app.querySelector(".deck, .title-slide")?.showDisplayMode();
     } else location.hash = "#/";
     return;
   }
   if (event.code === "KeyF") {
-    const main = app.querySelector(".deck");
+    const main = app.querySelector(".deck, .title-slide");
     if (main) toggleFullscreen(main);
     return;
   }

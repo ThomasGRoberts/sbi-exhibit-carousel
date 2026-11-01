@@ -36,8 +36,7 @@ export const exhibits = [
   {
     id: "gps-constellation", number: 5, title: "GPS Constellation",
     presenterId: "nathan", status: "draft", module: "./animations/gps-constellation.js",
-    states: ["Earth and MEO", "Populated GPS Planes",
-      "Geneva Receiver Visibility", "Sky Above Geneva"]
+    states: ["Earth and MEO", "Populated GPS Planes"]
   },
   {
     id: "ground-track", number: 6, title: "Repeating Ground Track Orbits",

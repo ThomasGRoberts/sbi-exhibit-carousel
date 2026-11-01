@@ -77,7 +77,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     color:0x929292,transparent:true,opacity:.72}));scene.add(orbit);
   const satellite=new THREE.Points(new THREE.BufferGeometry().setAttribute("position",
     new THREE.Float32BufferAttribute([0,0,0],3)),new THREE.PointsMaterial({
-    map:circleTexture("#969696","#3e3e3e",15),size:13,sizeAttenuation:false,
+    map:circleTexture("#bdbdbd","#777777",15),size:13,sizeAttenuation:false,
     transparent:true,depthTest:true,depthWrite:false,alphaTest:.04}));
   satellite.frustumCulled=false;satellite.renderOrder=8;scene.add(satellite);
   const camera=new THREE.OrthographicCamera(-2,2,2,-2,.01,100);
@@ -162,7 +162,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const dotLon=stage>=4?nearest.unwrapped:current.longitude;
     const dotX=xFor(dotLon),dotY=yFor(current.latitude);
     if(dotX>=plotX&&dotX<=plotX+plotW){
-      ctx.fillStyle="#969696";ctx.strokeStyle="#3e3e3e";ctx.lineWidth=1;
+      ctx.fillStyle="#bdbdbd";ctx.strokeStyle="#777777";ctx.lineWidth=1;
       ctx.beginPath();ctx.arc(dotX,dotY,4.4,0,TAU);ctx.fill();ctx.stroke();
     }
     if(stage>=3){
@@ -170,11 +170,18 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
         const x=xFor(lon),y=yFor(target.latitude);
         if(x<plotX||x>plotX+plotW)continue;
         ctx.fillStyle="#b88b13";ctx.beginPath();ctx.arc(x,y,4.8,0,TAU);ctx.fill();
-        if(stage===3&&elapsed<1.4){
-          ctx.strokeStyle=`rgba(184,139,19,${.7*(1-elapsed/1.4)})`;
-          ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(x,y,7+17*ease(elapsed/1.4),0,TAU);
+        const pulse=(elapsed%.8)/.8;
+        if(stage>=3){
+          ctx.strokeStyle=`rgba(184,139,19,${.75*(1-pulse)})`;
+          ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(x,y,7+15*ease(pulse),0,TAU);
           ctx.stroke();
         }
+        ctx.font="600 10px Roboto,Arial,sans-serif";
+        ctx.textAlign=x>plotX+plotW-55?"right":"left";
+        ctx.lineWidth=3;ctx.strokeStyle="rgba(255,255,255,.92)";
+        const labelX=x>plotX+plotW-55?x-9:x+9;
+        ctx.strokeText("Target",labelX,y-10);
+        ctx.fillStyle="#876719";ctx.fillText("Target",labelX,y-10);
       }
       const nearReturn=stage===6&&Math.abs(time-3.16*repeating.period)<repeating.period*.035;
       if(nearReturn){
@@ -200,13 +207,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     ctx.font="600 11px Roboto,Arial,sans-serif";
     ctx.fillText("Longitude",plotX+plotW/2,plotY+plotH+39);
     ctx.textAlign="left";
-    if(stage===1){
-      ctx.textAlign="center";ctx.font="600 11px Roboto,Arial,sans-serif";
-      ctx.fillStyle="#8b6a1c";
-      ctx.fillText("Coverage footprint · 10° minimum elevation",
-        Math.max(100,view.left*width/2),height*.16);
-      ctx.textAlign="left";
-    }
     host.dataset.mapWraps=wraps.toFixed(3);
     host.dataset.groundLongitude=current.longitude.toFixed(5);
     host.dataset.groundLatitude=current.latitude.toFixed(5);
