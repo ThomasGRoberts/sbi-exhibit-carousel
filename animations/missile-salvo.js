@@ -93,7 +93,9 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
     const stage=stateIndex%4;
     if(stage<2)return 0;
     if(stage===3)return scenario.stopFrame;
-    return clamp(elapsed*1000*PLAYBACK_RATE/scenario.frameDurationMs,0,scenario.stopFrame);
+    const revealDelay=mode==="north-korea"?2.2:0;
+    return clamp(Math.max(0,elapsed-revealDelay)*1000*PLAYBACK_RATE/
+      scenario.frameDurationMs,0,scenario.stopFrame);
   }
   function cameraAt(scenario,frame) {
     const a=Math.floor(frame),b=Math.min(a+1,scenario.cameraFrames.length-1),f=frame-a;
@@ -167,10 +169,19 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
       1.3+(SITE_DOT_RADIUS_PX-1.3)*Math.sqrt(
         clamp((view.radiusPixels-250)/(4200-250))):
       SITE_DOT_RADIUS_PX;
-    for(const site of scenario.sites) {
+    for(const [siteIndex,site] of scenario.sites.entries()) {
+      if(mode==="north-korea"&&stateIndex%4===2&&elapsed<siteIndex*.38)continue;
       const p=project(site,view);
       if(!p.visible)continue;
-      circle(p.x,p.y,r,GOLD,1);
+      const reveal=mode==="north-korea"&&stateIndex%4===2?
+        ease((elapsed-siteIndex*.38)/.3):1;
+      circle(p.x,p.y,r*(.65+.35*reveal),GOLD,reveal);
+      if(mode==="north-korea"&&stateIndex%4===2&&reveal<1){
+        context.globalAlpha=1;
+        context.beginPath();context.arc(p.x,p.y,r+10*reveal,0,Math.PI*2);
+        context.strokeStyle=`rgba(184,139,19,${.62*(1-reveal)})`;
+        context.lineWidth=1.6;context.stroke();
+      }
       if(stateIndex%4===1&&sitePulseSeconds<1.55){
         const f=sitePulseSeconds/1.55;
         context.beginPath();context.arc(p.x,p.y,r*(1.5+4*(1-(1-f)**2)),0,Math.PI*2);
@@ -201,6 +212,8 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
     host.dataset.lastArrivalFrame=scenario.lastArrivalFrame.toFixed(2);
     host.dataset.impactCount=String(scenario.shots.filter(shot=>
       frame>=shot.launchFrame+shot.durationFrames).length);
+    host.dataset.visibleSiteCount=String(mode==="north-korea"&&stateIndex%4===2?
+      Math.min(scenario.sites.length,Math.floor(elapsed/.38)+1):scenario.sites.length);
   }
   function tick(now) {
     if(paused||destroyed)return;

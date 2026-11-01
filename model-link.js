@@ -2,14 +2,15 @@ import * as THREE from "three";
 
 // The ESPL SBI project page uses this same gold icosahedron, orbit reveal,
 // timing, and label unfurl to lead visitors into the live model.
-export function createModelLink(container, { variant = "small", onActivate } = {}) {
+export function createModelLink(container, { variant = "small", onActivate,
+  alwaysOpen = false } = {}) {
   const link = document.createElement("a");
   link.className = "model-link" + (variant === "transition" ? " is-transition" : "");
   link.href = "https://espl.ae.gatech.edu/research/models/sbi/";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.setAttribute("aria-label", "Explore the interactive SBI model");
-  link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the interactive model&nbsp; →</span>';
+  link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the Interactive Model&nbsp; →</span>';
   link.addEventListener("click", event => {
     event.stopPropagation();
     onActivate?.();
@@ -101,6 +102,7 @@ export function createModelLink(container, { variant = "small", onActivate } = {
     motion();
   }
   function retract() {
+    if (alwaysOpen) return;
     if (!open || link.matches(":hover") || document.activeElement === link) return;
     open = false;
     link.classList.remove("is-open");
@@ -111,7 +113,7 @@ export function createModelLink(container, { variant = "small", onActivate } = {
   link.addEventListener("focusin", reveal);
   link.addEventListener("mouseleave", retract);
   link.addEventListener("focusout", retract);
-  later(() => link.classList.add("is-arrived"), 1100);
+  later(() => { link.classList.add("is-arrived"); if (alwaysOpen) reveal(); }, 1100);
   return () => {
     destroyed = true;
     cancelAnimationFrame(frame);

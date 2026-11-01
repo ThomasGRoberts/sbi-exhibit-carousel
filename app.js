@@ -1,9 +1,10 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js";
-import { createModelLink } from "./model-link.js";
+import { createModelLink } from "./model-link.js?invitation=2";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
   TITLE_STORAGE_KEY } from "./presentation-sequence.js";
 import { buildTitleEditor } from "./title-editor.js";
+import { createDormantCarousel } from "./animations/dormant-carousel.js";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
@@ -13,13 +14,17 @@ let phaseToken = 0;
 let transitionLayer = null;
 let routeVersion = 0;
 let displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
+let launchMode = "full";
 let lastFullscreenExit = -Infinity;
 const moduleSession = Date.now().toString(36);
-const selectionKey = "sbi-exhibit-carousel-selection-v1";
+const selectionKey = "sbi-exhibit-carousel-selection-v2";
 const commentLogUrl = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
 let titleConfiguration = loadTitleConfiguration();
-const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds, titleConfiguration);
-let selectedExhibitIds = new Set(exhibits.map(exhibit => exhibit.id));
+titleConfiguration.enabled = true;
+const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds,
+  { ...titleConfiguration, enabled:launchMode === "full" });
+let selectedExhibitIds = new Set(exhibits.filter(exhibit => exhibit.number !== 1)
+  .map(exhibit => exhibit.id));
 try {
   const saved = JSON.parse(localStorage.getItem(selectionKey) || "null");
   if (Array.isArray(saved)) selectedExhibitIds = new Set(saved.filter(id =>
@@ -64,6 +69,15 @@ function route() {
 }
 
 function stepHref(step) { return "#/present/" + encodeURIComponent(step.id); }
+function updateViewportAspect() {
+  const width = document.fullscreenElement === app ? app.clientWidth : window.innerWidth;
+  const height = document.fullscreenElement === app ? app.clientHeight : window.innerHeight;
+  if (width > 0 && height > 0) {
+    app.style.setProperty("--screen-aspect", `${width} / ${height}`);
+    app.style.setProperty("--screen-aspect-number", String(width / height));
+    activeExhibit?.resize?.();
+  }
+}
 function replaceView(main) {
   app.replaceChildren(main, ...(transitionLayer ? [transitionLayer] : []));
 }
@@ -162,26 +176,19 @@ function exhibitIndex(current) {
   } else {
     exhibits.forEach(exhibit => list.append(exhibitRow(exhibit)));
   }
-  const tabs = element("nav", "dashboard-tabs");
-  const exhibitsTab = element("button", "dashboard-tab is-active", "Exhibits");
-  const configTab = element("button", "dashboard-tab", "Configurations");
-  exhibitsTab.type = configTab.type = "button";
-  const editor = buildTitleEditor(exhibits, selectedExhibitIds, titleConfiguration, updated => {
-    titleConfiguration = updated;
-    try { localStorage.setItem(TITLE_STORAGE_KEY, JSON.stringify(updated)); }
-    catch (error) { console.warn("Presentation titles could not be saved.", error); }
-  }, step => { location.hash = stepHref(step); });
-  editor.hidden = true;
-  exhibitsTab.addEventListener("click", () => {
-    list.hidden = summary.hidden = false; editor.hidden = true;
-    exhibitsTab.classList.add("is-active"); configTab.classList.remove("is-active");
-  });
-  configTab.addEventListener("click", () => {
-    list.hidden = summary.hidden = true; editor.hidden = false;
-    configTab.classList.add("is-active"); exhibitsTab.classList.remove("is-active");
-    editor.refresh();
-  });
-  tabs.append(exhibitsTab, configTab);
+  const modeChoice = element("fieldset", "launch-mode-choice");
+  modeChoice.append(element("legend", "", "Presentation mode"));
+  for (const [value,label,description] of [
+    ["full","Full Presentation","Titles, agenda, and exhibits"],
+    ["exhibits","Exhibits Only","Scientific animations only"]]) {
+    const option = element("label", "launch-mode-option");
+    const input = element("input");
+    input.type = "radio"; input.name = "launch-mode"; input.value = value;
+    input.checked = launchMode === value;
+    input.addEventListener("change", () => { if (input.checked) launchMode = value; });
+    option.append(input,element("strong", "", label),element("span", "", description));
+    modeChoice.append(option);
+  }
   const actions = element("div", "landing-actions");
   const launch = element("button", "landing-action landing-action-primary", "Launch Carousel");
   launch.type = "button";
@@ -195,16 +202,22 @@ function exhibitIndex(current) {
       console.warn("Browser full screen unavailable; using presentation layout.", error));
     location.hash = stepHref(first);
   });
-  const comment = element("a", "landing-action landing-action-secondary", "Comment on Carousel");
-  comment.href = commentLogUrl; comment.target = "_blank"; comment.rel = "noopener noreferrer";
+  const comment = element("button", "landing-action landing-action-secondary", "Comment on Carousel");
+  comment.type = "button";
+  comment.addEventListener("click", () => {
+    launchMode = "full";
+    displayMode = "preview";
+    const first = steps()[0];
+    if (first) location.hash = stepHref(first);
+  });
   actions.append(launch, comment);
-  content.append(tabs, summary, list, editor, actions);
+  content.append(modeChoice, summary, list, actions);
   main.append(content);
   const mark = element("img", "directory-logo");
   mark.src = "assets/ESPL.png"; mark.alt = ""; mark.setAttribute("aria-hidden", "true");
   main.append(mark);
   replaceView(main);
-  if (current?.showConfig) configTab.click();
+  if (current?.showConfig) comment.click();
 }
 
 async function toggleFullscreen(main) {
@@ -233,7 +246,8 @@ async function deck(current, version) {
   const isTitle = current.page === "title";
   const slide = isTitle ? current.step.slide : null;
   const exhibit = isTitle ?
-    exhibits.find(item => item.id === slide.before) || exhibits[0] : current.exhibit;
+    (slide.id === "opening" ? exhibits.find(item => selectedExhibitIds.has(item.id)) :
+      exhibits.find(item => item.id === slide.before)) || exhibits[0] : current.exhibit;
   const { startAtEnd, requestedState } = current;
   const main = element("main", "deck");
   main.dataset.stepId = current.step?.id || "";
@@ -246,9 +260,26 @@ async function deck(current, version) {
   fullButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5m0 8v5h-5M8 21H3v-5"></path></svg>';
   const configButton = element("button", "configuration-button", "Configure");
   configButton.type = "button";
-  configButton.addEventListener("click", () => { location.hash = "#/configurations"; });
+  const configPanel = buildTitleEditor(exhibits, selectedExhibitIds,
+    titleConfiguration, updated => {
+      titleConfiguration = updated;
+      try { localStorage.setItem(TITLE_STORAGE_KEY, JSON.stringify(updated)); }
+      catch (error) { console.warn("Presentation titles could not be saved.", error); }
+    }, step => { location.hash = stepHref(step); });
+  configPanel.hidden = true;
+  configButton.addEventListener("click", () => {
+    configPanel.hidden = !configPanel.hidden;
+    if (!configPanel.hidden) configPanel.refresh();
+  });
+  const exportToolbarButton = element("button", "configuration-button", "Export");
+  exportToolbarButton.type = "button";
+  exportToolbarButton.setAttribute("aria-label", "Export presentation configuration");
+  exportToolbarButton.addEventListener("click", () => configPanel.exportConfiguration());
   const toolbarRight = element("div", "toolbar-right");
-  toolbarRight.append(configButton, fullButton);
+  const editTextButton = isTitle && slide.id !== "results" ?
+    element("button", "title-edit-button", "Edit text") : null;
+  if (editTextButton) { editTextButton.type = "button"; toolbarRight.append(editTextButton); }
+  toolbarRight.append(configButton, exportToolbarButton, fullButton);
   toolbar.append(back, toolbarRight);
   const stage = element("div", "preview-stage");
   const switcher = element("div", "exhibit-switcher");
@@ -295,9 +326,7 @@ async function deck(current, version) {
   commentLog.rel = "noopener noreferrer";
   let copyTimer;
   const previewMeta = element("div", "preview-meta");
-  const editTextButton = isTitle ? element("button", "title-edit-button", "Edit text") : null;
-  if (editTextButton) editTextButton.type = "button";
-  feedback.append(paneControl, ...(editTextButton ? [editTextButton] : []), commentLog);
+  feedback.append(paneControl, commentLog);
   previewMeta.append(switcher, feedback);
   stage.append(previewMeta);
   function showState(index) {
@@ -344,10 +373,12 @@ async function deck(current, version) {
   pane.append(host, logo);
   if (isTitle) {
     pane.classList.add("title-visualization");
+    if (slide.id === "results") pane.classList.add("visual-invitation");
     host.classList.add("title-stage");
-    const banner = element("div", "title-banner");
     const block = element("div", "title-block");
-    const title = element("h1", "", slide.title);
+    const title = element("h1");
+    const titleText = element("span", "", slide.title);
+    title.append(titleText);
     const subtitle = element("p", "title-subtitle", slide.subtitle || "");
     subtitle.hidden = !slide.subtitle;
     block.append(title, subtitle);
@@ -361,12 +392,19 @@ async function deck(current, version) {
       });
       block.append(list);
     }
-    host.append(banner, block);
+    if (slide.id !== "results") host.append(block);
+    if (slide.id === "opening") {
+      const support = element("p", "title-support", slide.support || "");
+      support.hidden = !slide.support;
+      block.append(support);
+      main.updateSupport = value => { support.textContent = value; support.hidden = !value; };
+    }
     if (current.step.action === "model") {
       main.disposeModelLink = createModelLink(host, {
-        variant:"transition", onActivate:() => navigateExhibit(1)
+        variant:"small", alwaysOpen:true, onActivate:() => navigateExhibit(1)
       });
     }
+    if (editTextButton) {
     const editor = element("div", "title-inline-editor");
     editor.hidden = true;
     editor.append(element("h2", "", "Edit title slide"));
@@ -386,12 +424,14 @@ async function deck(current, version) {
       editor.append(wrapper);
     }
     addField("Main title", slide.title, value => {
-      slide.title = value; title.textContent = value;
+      slide.title = value; titleText.textContent = value;
       main.setAttribute("aria-label", "Presentation title: " + value);
     });
     addField("Subtitle", slide.subtitle || "", value => {
       slide.subtitle = value; subtitle.textContent = value; subtitle.hidden = !value;
     });
+    if (slide.id === "opening") addField("Presenters and date", slide.support || "",
+      value => { slide.support = value; main.updateSupport(value); });
     agendaRows.forEach((row, index) => addField("Agenda item " + (index+1),
       slide.agenda[index], value => { slide.agenda[index] = value; row.textContent = value; }));
     const done = element("button", "editor-button", "Done");
@@ -403,6 +443,7 @@ async function deck(current, version) {
       editor.hidden = !editor.hidden;
       if (!editor.hidden) editor.querySelector("input")?.focus();
     });
+    }
   }
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
@@ -410,7 +451,7 @@ async function deck(current, version) {
   stage.append(navigationHint);
   const error = element("p", "preview-error");
   error.hidden = true;
-  main.append(toolbar, stage, error);
+  main.append(toolbar, configPanel, stage, error);
   replaceView(main);
 
   function applyDisplayMode() {
@@ -418,7 +459,7 @@ async function deck(current, version) {
     const label = displayMode === "presentation" ? "Exit full screen" : "Enter full screen";
     fullButton.setAttribute("aria-label", label);
     fullButton.title = label;
-    activeExhibit?.resize();
+    requestAnimationFrame(updateViewportAspect);
   }
   main.showDisplayMode = applyDisplayMode;
   fullButton.addEventListener("click", () => toggleFullscreen(main));
@@ -432,6 +473,14 @@ async function deck(current, version) {
     activeStep = current.step;
     showState(0);
     pane.classList.add("is-ready");
+    if (["opening","results"].includes(slide.id)) {
+      try {
+        const ambient = await createDormantCarousel(host);
+        if (version !== routeVersion) { ambient.destroy(); return; }
+        activeExhibit = ambient;
+        ambient.start();
+      } catch (problem) { console.error("Dormant background could not start", problem); }
+    }
     requestAnimationFrame(() => requestAnimationFrame(clearTransition));
     return;
   }
@@ -485,6 +534,7 @@ function render() {
     activeStep = null;
     if (document.fullscreenElement === app) document.exitFullscreen().catch(console.warn);
     displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
+    launchMode = "full";
     exhibitIndex(current);
     clearTransition();
   }
@@ -515,7 +565,9 @@ document.addEventListener("fullscreenchange", () => {
   displayMode = document.fullscreenElement === app ? "presentation" : "preview";
   if (displayMode === "preview") lastFullscreenExit = performance.now();
   app.querySelector(".deck")?.showDisplayMode();
+  requestAnimationFrame(updateViewportAspect);
 });
+window.addEventListener("resize", updateViewportAspect);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) activeExhibit?.pause();
   else activeExhibit?.start();
@@ -542,4 +594,5 @@ window.addEventListener("keydown", event => {
   }
   navigateExhibit(event.code === "ArrowLeft" ? -1 : 1);
 });
+updateViewportAspect();
 render();

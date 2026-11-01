@@ -93,7 +93,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const camera=new THREE.PerspectiveCamera(38,16/9,.01,1000);
   const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
   renderer.sortObjects=true; host.append(renderer.domElement);
-  const root=new THREE.Group(); scene.add(root); root.add(makeEarth(geojson));
+  const root=new THREE.Group(); scene.add(root);
+  const earth=makeEarth(geojson);root.add(earth);
   const cells=fibonacciShell(15000);
   const globalTexture=circleTexture("#8c8c8c");
   const satelliteTexture=circleTexture("#ffffff","#111111",14);
@@ -157,6 +158,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
 
   function draw() {
     if(destroyed) return;
+    // Give the geographic context extra definition only on pane 02.03.
+    earth.children[1].material.color.setHex(stateIndex===2?0x6f6f6f:0xa8a8a8);
+    earth.children[1].material.opacity=stateIndex===2?.78:.62;
     root.rotation.y=current.rotation;
     const globalPosition=new THREE.Vector3(0,current.distance*Math.sin(current.pitch),
       current.distance*Math.cos(current.pitch));

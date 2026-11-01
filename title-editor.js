@@ -13,13 +13,6 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   const intro = node("p", "editor-intro",
     "Edit title slides here. Changes affect the carousel immediately and are saved in this browser.");
   const controls = node("div", "editor-controls");
-  const toggleLabel = node("label", "editor-toggle");
-  const toggle = node("input", "");
-  toggle.type = "checkbox"; toggle.checked = config.enabled;
-  toggle.addEventListener("change", () => {
-    config.enabled = toggle.checked; changed();
-  });
-  toggleLabel.append(toggle, node("span", "", "Include presentation titles"));
   const add = node("button", "editor-button", "Add title slide");
   add.type = "button";
   add.addEventListener("click", () => {
@@ -31,8 +24,8 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   const exportButton = node("button", "editor-button", "Export Title Configuration");
   exportButton.type = "button";
   exportButton.addEventListener("click", () => {
-    const data = { version:1,
-      instructions:"In presentation-sequence.js, replace defaultTitleConfiguration with this configuration. Each slide's before field inserts it immediately before that exhibit. The slides array order controls slides at the same insertion point. action: model uses the existing SBI model shortcut. The enabled fields control playback.",
+    const data = { version:2,
+      instructions:"In presentation-sequence.js, replace defaultTitleConfiguration with this configuration. The opening slide always precedes enabled exhibits. Other slides' before fields place them immediately before their exhibits. action: model uses the SBI model shortcut. Individual enabled fields control playback; the launch mode chooses whether supplementary slides are included.",
       ...config,
       slides:config.slides.map(slide => ({
         ...slide, paneId:titlePaneId(slide,exhibits),
@@ -45,14 +38,14 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  controls.append(toggleLabel, add, exportButton);
+  controls.append(add, exportButton);
   const cards = node("div", "editor-cards");
   const previewTitle = node("h3", "", "Presentation sequence preview");
   const preview = node("ol", "sequence-preview");
   function changed() {
     config.slides.sort((a,b) => exhibits.findIndex(item => item.id === a.before) -
       exhibits.findIndex(item => item.id === b.before));
-    onChange(structuredClone(config));
+    onChange(config);
     draw();
   }
   function field(label, value, change, multiline = false) {
@@ -61,7 +54,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
     const input = node(multiline ? "textarea" : "input", "");
     if (!multiline) input.type = "text";
     input.value = value;
-    input.addEventListener("input", () => { change(input.value); onChange(structuredClone(config)); drawPreview(); });
+    input.addEventListener("input", () => { change(input.value); onChange(config); drawPreview(); });
     wrapper.append(input);
     return wrapper;
   }
@@ -91,7 +84,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       enabled.append(check, node("span", "", "Slide "+(index+1)));
       const moveUp = node("button", "editor-small-button", "↑");
       moveUp.type = "button"; moveUp.title = "Move earlier";
-      moveUp.disabled = index === 0;
+      moveUp.disabled = index === 0 || config.slides[index-1]?.id === "opening";
       moveUp.addEventListener("click", () => {
         [config.slides[index-1].before,config.slides[index].before] =
           [config.slides[index].before,config.slides[index-1].before];
@@ -100,7 +93,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       });
       const moveDown = node("button", "editor-small-button", "↓");
       moveDown.type = "button"; moveDown.title = "Move later";
-      moveDown.disabled = index === config.slides.length-1;
+      moveDown.disabled = index === config.slides.length-1 || slide.id === "opening";
       moveDown.addEventListener("click", () => {
         [config.slides[index+1].before,config.slides[index].before] =
           [config.slides[index].before,config.slides[index+1].before];
@@ -109,11 +102,13 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       });
       const remove = node("button", "editor-small-button", "Remove");
       remove.type = "button";
+      remove.disabled = slide.id === "opening";
       remove.addEventListener("click", () => { config.slides.splice(index,1); changed(); });
       bar.append(enabled,moveUp,moveDown,remove);
       const type = node("select", "editor-select");
-      for (const kind of ["title","agenda"]) {
-        const option = node("option", "", kind === "title" ? "Title" : "Agenda");
+      for (const kind of slide.id === "results" ? ["visual"] : ["title","agenda"]) {
+        const option = node("option", "", kind === "title" ? "Title" :
+          kind === "agenda" ? "Agenda" : "Visual model invitation");
         option.value = kind; type.append(option);
       }
       type.value = slide.type;
@@ -124,6 +119,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
         option.value = exhibit.id; position.append(option);
       }
       position.value = slide.before;
+      position.hidden = slide.id === "opening";
       position.addEventListener("change", () => { slide.before = position.value; changed(); });
       const agenda = field("Agenda items (one per line)", (slide.agenda||[]).join("\n"),
         value => { slide.agenda = value.split("\n").map(item => item.trim()).filter(Boolean); }, true);
@@ -144,6 +140,8 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       actionLabel.hidden = slide.id !== "results";
       card.append(bar, field("Title",slide.title,value => { slide.title=value; }),
         field("Subtitle",slide.subtitle||"",value => { slide.subtitle=value; }),
+        ...(slide.id === "opening" ? [field("Presenters and date",slide.support||"",
+          value => { slide.support=value; })] : []),
         type,position,agenda,highlight,actionLabel);
       cards.append(card);
     });
@@ -152,5 +150,6 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   panel.append(heading,intro,controls,cards,previewTitle,preview);
   draw();
   panel.refresh = drawPreview;
+  panel.exportConfiguration = () => exportButton.click();
   return panel;
 }

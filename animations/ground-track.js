@@ -37,7 +37,7 @@ function groundAt(model,time) {
 }
 function makeTrack(model) {
   const points=[];
-  const count=1600,step=model.period/400;
+  const count=2000,step=model.period/400;
   let previous=0;
   for(let i=0;i<=count;i++) {
     const time=i*step,ground=groundAt(model,time);
@@ -53,6 +53,21 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   if(!response.ok)throw new Error("Ground-track geography could not load");
   const geography=await response.json();
   const tracks=[makeTrack(ordinary),makeTrack(repeating)];
+  const ordinaryHistory=[];
+  let nextOrdinarySample=0;
+  function extendOrdinaryHistory(time) {
+    const step=ordinary.period/400;
+    while(nextOrdinarySample<=time) {
+      const ground=groundAt(ordinary,nextOrdinarySample);
+      ordinaryHistory.push({...ground,time:nextOrdinarySample,
+        unwrapped:ground.longitude});
+      nextOrdinarySample+=step;
+    }
+    // Six orbits remain visible; older points cannot influence the current view.
+    if(ordinaryHistory.length>2401)
+      ordinaryHistory.splice(0,ordinaryHistory.length-2401);
+  }
+  extendOrdinaryHistory(0);
   const target=tracks[1][64]; // A 40° N point on the actual repeating ground track.
   const footprintAngle=Math.acos(Math.cos(10*RAD)/(ordinary.a/R))-10*RAD;
   const scene=new THREE.Scene();scene.background=new THREE.Color(0xffffff);
@@ -142,9 +157,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       ctx.setLineDash([5,6]);ctx.strokeStyle="#aaa";ctx.beginPath();
       ctx.moveTo(x,plotY);ctx.lineTo(x,plotY+plotH);ctx.stroke();ctx.setLineDash([]);
     }
-    const source=stage<2?tracks[0]:tracks[1];
+    const source=stage<2?ordinaryHistory:tracks[1];
     const time=stage<2?ordinaryTime:repeatTime;
-    const index=Math.min(source.length-1,Math.floor(time/(stage<2?ordinary.period:repeating.period)*400));
+    const index=stage<2?source.length-1:
+      Math.min(source.length-1,Math.floor(time/repeating.period*400));
     ctx.beginPath();
     let priorX=NaN;
     for(let i=0;i<=index;i++){
@@ -259,11 +275,12 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     elapsed+=delta;
     cameraBlend=clamp(cameraBlend+(stage===1?1:-1)*delta/1.27);
     if(transition<1)transition=Math.min(1,transition+delta/(reduced?.01:1.27));
-    if(stage<2)ordinaryTime=Math.min(ordinary.period*(stage===0?.84:3.9),
-      ordinaryTime+(stage===1?330:1210)*delta);
+    if(stage<2)ordinaryTime=stage===0?
+      Math.min(ordinary.period*.84,ordinaryTime+1210*delta):ordinaryTime+450*delta;
     else repeatTime=Math.min(repeating.period*(stage===2?1:stage===3||stage===4?2:
-      stage===6?3.16:3),
+      stage===6?4.25:3),
       repeatTime+7920*delta);
+    if(stage<2)extendOrdinaryHistory(ordinaryTime);
     render();raf=requestAnimationFrame(frame);
   }
   function goToState(index){
@@ -271,7 +288,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const previous=stage;
     from={...view};stage=index;transition=0;elapsed=0;
     if(previous<2&&stage>=2){repeatTime=0;updateOrbit(repeating);}
-    if(previous>=2&&stage<2){ordinaryTime=0;updateOrbit(ordinary);}
+    if(previous>=2&&stage<2){ordinaryTime=0;ordinaryHistory.length=0;
+      nextOrdinarySample=0;extendOrdinaryHistory(0);updateOrbit(ordinary);}
     if(stage===6)repeatTime=Math.max(2*repeating.period,
       Math.min(3*repeating.period,repeatTime));
     onStateChange(index,7);render();return true;
@@ -281,6 +299,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     stage=index;view={...targetViews[index]};from={...view};transition=1;
     cameraBlend=index===1?1:0;
     ordinaryTime=index===0?0:ordinary.period*.8;
+    ordinaryHistory.length=0;nextOrdinarySample=0;
+    extendOrdinaryHistory(ordinaryTime);
     repeatTime=index<2?0:index===6?2*repeating.period:index===2?0:
       repeating.period*(index===3?.8:index===4?1.8:2.5);
     updateOrbit(index<2?ordinary:repeating);
