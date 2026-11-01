@@ -514,8 +514,8 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 .model-link.is-arrived { visibility:visible;opacity:1;transform:translateY(0);pointer-events:auto; }
 .model-link-icon { position:relative;z-index:2;width:34px;height:34px;flex:0 0 34px; }
 .model-link-canvas { position:absolute;top:-5px;left:-5px;width:44px;height:44px;
-  display:block;opacity:.55;transition:opacity .24s ease; }
-.model-link:hover .model-link-canvas,.model-link:focus-visible .model-link-canvas { opacity:.9; }
+  display:block;opacity:.9;transition:opacity .24s ease; }
+.model-link:hover .model-link-canvas,.model-link:focus-visible .model-link-canvas { opacity:1; }
 .model-link-label { position:absolute;top:0;left:34px;height:34px;display:flex;
   align-items:center;white-space:nowrap;padding-left:10px;opacity:0;
   clip-path:inset(0 100% 0 0);color:#666;
