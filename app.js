@@ -181,7 +181,7 @@ async function deck(current, version) {
   const commentLog = element("a", "comment-log-link external-metadata-link");
   commentLog.append(element("span", "", "Comment Log"));
   commentLog.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 18 18" aria-hidden="true" focusable="false" class="external-link-icon"><path class="external-link-icon__box" d="M7.25 4.25H4.5A1.75 1.75 0 0 0 2.75 6v7.5a1.75 1.75 0 0 0 1.75 1.75H12a1.75 1.75 0 0 0 1.75-1.75v-2.75"></path><g class="external-link-icon__arrow"><path d="M9.25 2.75h6v6"></path><path d="m8 10 7.25-7.25"></path></g></svg>');
-  commentLog.href = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQgG1AdZae1QX_oComKpzIleXmk4dJE64nMbRhP4sY0dmVx7Wb_MpEpFllrsmy7Jo26TyHCIjLcjCX4/pubhtml";
+  commentLog.href = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
   commentLog.target = "_blank";
   commentLog.rel = "noopener noreferrer";
   let copyTimer;
