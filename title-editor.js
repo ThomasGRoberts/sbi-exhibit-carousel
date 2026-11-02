@@ -1,4 +1,4 @@
-import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?integrated-model-1";
+import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?opening-slide-1";
 
 function node(tag, className, text) {
   const value = document.createElement(tag);
@@ -140,8 +140,8 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       actionLabel.hidden = slide.id !== "results";
       card.append(bar, field("Title",slide.title,value => { slide.title=value; }),
         field("Subtitle",slide.subtitle||"",value => { slide.subtitle=value; }),
-        ...(slide.id === "opening" ? [field("Presenters and date",slide.support||"",
-          value => { slide.support=value; })] : []),
+        ...(slide.id === "opening" ? [field("Presenters, date, and institution (one line each)",
+          slide.support||"",value => { slide.support=value; },true)] : []),
         type,position,agenda,highlight,actionLabel);
       cards.append(card);
     });

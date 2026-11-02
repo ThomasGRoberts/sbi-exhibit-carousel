@@ -2,8 +2,8 @@ import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?project-page-match=1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js?integrated-model-1";
-import { buildTitleEditor } from "./title-editor.js?integrated-model-1";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?opening-slide-1";
+import { buildTitleEditor } from "./title-editor.js?opening-slide-1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
@@ -56,6 +56,21 @@ function element(tag, className = "", text = "") {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+function renderOpeningSupport(container, value) {
+  container.replaceChildren();
+  const lines = String(value || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  lines.forEach((text, index) => {
+    const line = element("span", "title-support-line");
+    const names = index === 0 ? text.match(/^(.+?) and (.+)$/) : null;
+    if (names) {
+      line.append(element("strong", "title-support-name", names[1]),
+        element("span", "title-support-and", " and "),
+        element("strong", "title-support-name", names[2]));
+    } else line.textContent = text;
+    container.append(line);
+  });
+  container.hidden = lines.length === 0;
 }
 
 function route() {
@@ -504,6 +519,7 @@ async function deck(current, version) {
     pane.classList.add("title-visualization");
     if (slide.id === "results") pane.classList.add("visual-invitation");
     host.classList.add("title-stage");
+    if (slide.id === "opening") host.classList.add("is-opening");
     const block = element("div", "title-block");
     const title = element("h1");
     const titleText = element("span", "", slide.title);
@@ -523,10 +539,10 @@ async function deck(current, version) {
     }
     host.append(block);
     if (slide.id === "opening") {
-      const support = element("p", "title-support", slide.support || "");
-      support.hidden = !slide.support;
+      const support = element("p", "title-support");
+      renderOpeningSupport(support, slide.support);
       block.append(support);
-      main.updateSupport = value => { support.textContent = value; support.hidden = !value; };
+      main.updateSupport = value => renderOpeningSupport(support, value);
     }
     if (editTextButton) {
     const editor = element("div", "title-inline-editor");
@@ -537,11 +553,11 @@ async function deck(current, version) {
       catch (error) { console.warn("Presentation titles could not be saved.", error); }
       stateLabel.title = "Copy " + current.step.paneId + " · " + slide.title;
     }
-    function addField(label, value, update) {
+    function addField(label, value, update, multiline = false) {
       const wrapper = element("label", "title-edit-field");
       wrapper.append(element("span", "", label));
-      const input = element("input");
-      input.type = "text";
+      const input = element(multiline ? "textarea" : "input");
+      if (!multiline) input.type = "text";
       input.value = value;
       input.addEventListener("input", () => { update(input.value); saveSlide(); });
       wrapper.append(input);
@@ -554,8 +570,8 @@ async function deck(current, version) {
     addField("Subtitle", slide.subtitle || "", value => {
       slide.subtitle = value; subtitle.textContent = value; subtitle.hidden = !value;
     });
-    if (slide.id === "opening") addField("Presenters and date", slide.support || "",
-      value => { slide.support = value; main.updateSupport(value); });
+    if (slide.id === "opening") addField("Presenters, date, and institution (one line each)",
+      slide.support || "", value => { slide.support = value; main.updateSupport(value); }, true);
     agendaRows.forEach((row, index) => addField("Agenda item " + (index+1),
       slide.agenda[index], value => { slide.agenda[index] = value; row.textContent = value; }));
     const done = element("button", "editor-button", "Done");

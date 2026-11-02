@@ -6,7 +6,7 @@ export const defaultTitleConfiguration = {
   slides: [
     { id:"opening", type:"title", title:"Exploring SBI Architectures",
       subtitle:"Space-Based Interceptors & Strategic Stability",
-      support:"Fernando Miranda España · Nathan O'Brien · November 2, 2026",
+      support:"Fernando Miranda España and Nathan O'Brien\nNovember 2, 2026\nGeorgia Institute of Technology",
       agenda:[], highlight:0, before:"geographic-input", enabled:true },
     { id:"threat-region", type:"agenda", title:"How Do We Characterize a Threat?",
       subtitle:"", agenda:["Geographic Region","Salvo Size"], highlight:0,
@@ -66,6 +66,11 @@ export function loadTitleConfiguration() {
       }
       const openingIndex = saved.slides.findIndex(slide => slide.id === "opening");
       if (openingIndex > 0) saved.slides.unshift(saved.slides.splice(openingIndex, 1)[0]);
+      const savedOpening = saved.slides.find(slide => slide.id === "opening");
+      const oldByline = "Fernando Miranda España · Nathan O'Brien · ";
+      if (savedOpening?.support?.startsWith(oldByline))
+        savedOpening.support = "Fernando Miranda España and Nathan O'Brien\n" +
+          savedOpening.support.slice(oldByline.length) + "\nGeorgia Institute of Technology";
       const results = saved.slides.find(slide => slide.id === "results");
       if (results) {
         if (results.title === "Let's See Some Results")

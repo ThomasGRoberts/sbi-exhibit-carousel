@@ -77,6 +77,15 @@
 .title-support { margin:2.3em 0 0;color:#666;font:500 clamp(11px,1vw,16px)/1.5 Roboto,Arial,sans-serif;
   animation:espl-subtitle-enter .7s .7s cubic-bezier(.22,1,.36,1) both; }
 .title-support[hidden] { display:none; }
+.title-support-line { display:block; }
+.title-support-name { font-weight:650;white-space:nowrap; }
+.title-support-and { font-weight:400; }
+.title-stage.is-opening .title-block { width:min(68%,980px);padding-left:2vw; }
+.title-stage.is-opening .title-block h1 { font-size:clamp(36px,5.4vw,82px); }
+.title-stage.is-opening .title-subtitle { font-size:clamp(18px,2.05vw,32px); }
+.title-stage.is-opening .title-support { margin-top:1.7em;
+  font-size:clamp(16px,1.45vw,23px);line-height:1.45; }
+.title-stage.is-opening .title-support-line + .title-support-line { margin-top:.22em; }
 .title-agenda { display:flex;flex-direction:column;align-items:flex-start;gap:.6em;
   margin:1.8em 0 0;padding:0;list-style:none;
   font-size:clamp(14px,1.65vw,25px);color:#656565; }
@@ -103,8 +112,9 @@
 .title-inline-editor[hidden] { display:none; }
 .title-inline-editor h2 { margin:0;font-size:17px; }
 .title-edit-field { display:flex;flex-direction:column;gap:5px;color:#626262;font-size:11px; }
-.title-edit-field input { width:100%;padding:8px;border:1px solid #cfcfcf;
+.title-edit-field input,.title-edit-field textarea { width:100%;padding:8px;border:1px solid #cfcfcf;
   border-radius:3px;color:#252525;font:14px Roboto,Arial,sans-serif; }
+.title-edit-field textarea { min-height:92px;resize:vertical; }
 .title-inline-editor .editor-button { align-self:flex-end; }
 .launch-mode-choice { display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;
   border:0;padding:0;margin:0 0 16px; }
@@ -163,6 +173,10 @@
   .title-block { left:clamp(24px,6vw,40px);top:50%;width:calc(100% - 48px);
     padding-left:14px; }
   .title-block h1 { font-size:clamp(19px,5vw,35px); }
+  .title-stage.is-opening .title-block { width:calc(100% - 48px);padding-left:14px; }
+  .title-stage.is-opening .title-block h1 { font-size:clamp(27px,6.2vw,42px); }
+  .title-stage.is-opening .title-subtitle { font-size:clamp(15px,3.6vw,23px); }
+  .title-stage.is-opening .title-support { font-size:clamp(13px,2.8vw,18px); }
   .title-agenda { gap:.8em;margin-top:1em; }
   .configuration-button { font-size:10px; }
 }
