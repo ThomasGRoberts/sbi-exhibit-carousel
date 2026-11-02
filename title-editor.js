@@ -1,4 +1,4 @@
-import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?project-title-and=1";
+import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?slide23-1";
 
 function node(tag, className, text) {
   const value = document.createElement(tag);
@@ -61,12 +61,14 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   function drawPreview() {
     preview.replaceChildren();
     for (const step of buildPresentationSteps(exhibits, selection, config)) {
-      const item = node("li", "", step.kind === "title" ?
+      const label=step.kind === "title" ?
         step.paneId+" · Title · "+step.slide.title+(step.slide.type === "agenda" ?
           " — "+(step.slide.agenda[step.slide.highlight] || "") : "") :
+        step.kind === "content" ? step.paneId+" · Slide 23 process diagram" :
         "Exhibit "+String(step.exhibit.number).padStart(2,"0")+" · "+
           step.panes.map(index => String(step.exhibit.number).padStart(2,"0")+"."+
-            String(index+1).padStart(2,"0")).join("–"));
+            String(index+1).padStart(2,"0")).join("–");
+      const item = node("li", "", label);
       const button = node("button", "preview-step", "Preview");
       button.type = "button"; button.addEventListener("click", () => onPreview(step));
       item.append(button); preview.append(item);

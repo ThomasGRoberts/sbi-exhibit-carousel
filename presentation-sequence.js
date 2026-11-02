@@ -129,10 +129,14 @@ export function buildPresentationSteps(exhibits, selection, config) {
     if (!selection.has(exhibit.id)) continue;
     if (config.enabled) for (const slide of config.slides) {
       if (!['opening','speakers'].includes(slide.id) && slide.enabled &&
-          slide.before === exhibit.id)
+          slide.before === exhibit.id) {
         steps.push({ id:"title-"+slide.id, kind:"title", slide,
           paneId:titlePaneId(slide,exhibits),
           action:slide.id==="results"&&slide.action==="model"?"model":null });
+        if (exhibit.id==="sbi-optimization" && slide.id==="under-the-hood")
+          steps.push({ id:"under-the-hood-process", kind:"content", exhibit,
+            paneId:"07.00-process", title:"SBI optimization process" });
+      }
     }
     const groups = paneGroups[exhibit.id] ||
       exhibit.states.map((_, index) => [index]);

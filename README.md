@@ -36,6 +36,8 @@ The circular 50° example at **13,892.283 km altitude** has period **28,721.367 
 
 ## Exhibit 07 — SBI Constellation Optimization
 
+The Slide 23 process diagram appears immediately after the **What's Happening Under the Hood?** title and before 07.01 in the full presentation. One click or Space reveals Fernando's capability input, Candidate RGT Orbits, and their connecting arrows together. The next advance enters 07.01; Left Arrow reverses the reveal before returning to the title. The standalone study at `prototypes/slide-23/` uses the same diagram component.
+
 The recorded Iran run is **`PREp-s002-d45-v4-g10-b170-k0-i1-261011a-a891`**, source commit **`059f92436212d472a30234e0a276e9c0bc2d23e2`**. Source files in sibling `sbi-constellation-viz/data/principal_runs/runs/` are the run's `_config.json`, `_result.json`, selected-orbit CSV, and `gurobi.log`. `tools/build_optimization_data.py` packs recorded information into `assets/iran-optimization.json`. The run label is `IR_Principal`. Its targets are **Imam Khomeini Spaceport** (35.23878672° N, 53.94957116° E) and **Shahroud Missile Test Site** (36.20108979° N, 55.33387388° E).
 
 Inputs include salvo **2**, detection time **45 s**, interceptor burnout speed **4.0 km/s**, one interceptor per satellite, maximum acceleration **10 g**, missile burnout **170 s**, zero decision delay, intercept altitude **200 km**, zero minimum elevation, and minimum orbital altitude **200 km**. The model's reach bound is **418.423 km**, or **3.55198°** central angle.

@@ -1,0 +1,26 @@
+.under-hood { position:absolute;inset:0;container-type:inline-size; }
+.under-hood .arrows { position:absolute;inset:0;z-index:1;width:100%;height:100%;overflow:visible;
+  fill:none;stroke:#545859;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round; }
+.under-hood .node { position:absolute;z-index:2;display:grid;place-items:center;text-align:center;
+  width:18%;height:13%;padding:4px 1%;border-radius:clamp(6px,.9cqw,12px);
+  font:700 clamp(11px,1.8cqw,26px)/1.16 Roboto,Arial,sans-serif;letter-spacing:-.017em; }
+.under-hood .input { top:18%;background:#fff;border:2px solid #b3a369;color:#222; }
+.under-hood .input-policy { left:9%; }
+.under-hood .input-technical { left:45%; }
+.under-hood .portrait { position:absolute;z-index:2;top:18.6%;width:7.2%;aspect-ratio:1;object-fit:contain; }
+.under-hood .portrait-policy { left:28.3%; }
+.under-hood .portrait-technical { left:64.3%; }
+.under-hood .process { top:44%;background:#003057;color:#fff; }
+.under-hood .kill-radius { left:21%; }
+.under-hood .candidate-orbits { left:45%; }
+.under-hood .integer-program { left:69%; }
+.under-hood .output { top:72%;left:45%;background:#b3a369;color:#003057; }
+.under-hood .reveal { opacity:0;visibility:hidden;transition:opacity .4s ease,visibility 0s .4s; }
+.under-hood[data-beat="1"] .reveal { opacity:1;visibility:visible;
+  transition:opacity .4s ease,visibility 0s; }
+@media(max-width:760px) {
+  .under-hood .node { font-size:clamp(9px,1.55cqw,23px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .under-hood .reveal,.under-hood[data-beat="1"] .reveal { transition:none; }
+}

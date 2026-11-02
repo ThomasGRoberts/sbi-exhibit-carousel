@@ -1,12 +1,14 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?persistent-invitation=1";
+import { createUnderHoodDiagram } from "./animations/under-the-hood.js?slide23-1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js?project-title-and=1";
-import { buildTitleEditor } from "./title-editor.js?project-title-and=1";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?slide23-1";
+import { buildTitleEditor } from "./title-editor.js?slide23-1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
+let activeContent = null;
 let persistentModelLink = null;
 let activeStep = null;
 let phaseTimer = 0;
@@ -35,6 +37,7 @@ let modelLoadTimer = 0;
 let paneToastTimer = 0;
 let pendingFullscreenRestore = false;
 let modelReturnInFlight = false;
+let pendingContentBeat = 0;
 let titleConfiguration = loadTitleConfiguration();
 titleConfiguration.enabled = true;
 const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds,
@@ -85,6 +88,7 @@ function route() {
   if (parts[0] === "present") {
     const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
     if (step?.kind === "title") return {page:"title", step};
+    if (step?.kind === "content") return {page:"content", step, exhibit:step.exhibit};
     if (step) return {page:"exhibit", exhibit:step.exhibit,
       requestedState:step.start, startAtEnd:false, step};
   }
@@ -106,7 +110,7 @@ function route() {
 function stepHref(step) { return "#/present/" + encodeURIComponent(step.id); }
 function logicalPaneId(step) {
   if (!step) return "";
-  if (step.kind === "title") return step.paneId;
+  if (step.kind === "title" || step.kind === "content") return step.paneId;
   const first = stateId(step.exhibit, step.start);
   return step.start === step.end ? first : first + "–" + stateId(step.exhibit, step.end);
 }
@@ -381,6 +385,7 @@ async function toggleFullscreen(main) {
 
 async function deck(current, version) {
   const isTitle = current.page === "title";
+  const isContent = current.page === "content";
   const slide = isTitle ? current.step.slide : null;
   const isClosing = isTitle && current.step.id === "title-closing";
   const isSpeakers = isTitle && slide.id === "speakers";
@@ -392,6 +397,7 @@ async function deck(current, version) {
   const main = element("main", "deck");
   main.dataset.stepId = current.step?.id || "";
   main.setAttribute("aria-label", isTitle ? "Presentation title: " + slide.title :
+    isContent ? "Process diagram: SBI constellation optimization" :
     "Exhibit " + String(exhibit.number).padStart(2, "0") + ": " + exhibit.title);
   const toolbar = element("div", "preview-toolbar");
   const back = makeBackLink("#/");
@@ -425,6 +431,7 @@ async function deck(current, version) {
   const switcher = element("div", "exhibit-switcher");
   const switcherCue = element("span", "exhibit-switcher-cue",
     isClosing ? "Closing slide" : isSpeakers ? "Speaker introduction" :
+    isContent ? "Process diagram · before Exhibit 07" :
     isTitle ? "Presentation title · before Exhibit " +
       String(exhibit.number).padStart(2,"0") : "Click to choose exhibit");
   const heading = element("h1", "exhibit-heading");
@@ -472,9 +479,10 @@ async function deck(current, version) {
   previewMeta.append(switcher, feedback);
   stage.append(previewMeta);
   function showState(index) {
-    if (isTitle) {
+    if (isTitle || isContent) {
       paneValue.textContent = current.step.paneId;
-      stateLabel.title = "Copy " + current.step.paneId + " · " + slide.title;
+      stateLabel.title = "Copy " + current.step.paneId + " · " +
+        (isContent ? current.step.title : slide.title);
       copied.classList.remove("is-visible");
       return;
     }
@@ -506,7 +514,8 @@ async function deck(current, version) {
   });
   showState(0);
   const pane = element("section", "visualization-pane");
-  pane.setAttribute("aria-label", isTitle ? "Presentation title" : "Exhibit visualization");
+  pane.setAttribute("aria-label", isTitle ? "Presentation title" :
+    isContent ? "SBI optimization process diagram" : "Exhibit visualization");
   const host = element("div", "animation-host");
   const logo = element("img", "presentation-logo");
   logo.src = "assets/ESPL.png";
@@ -659,6 +668,21 @@ async function deck(current, version) {
   });
   applyDisplayMode();
 
+  if (isContent) {
+    activeStep = current.step;
+    activeContent = createUnderHoodDiagram(host);
+    main.showContentBeat = beat => {
+      if (beat) activeContent.reveal();
+      else activeContent.reset();
+      navigationHint.querySelector(".hint-action").textContent = beat ? "next" : "reveal";
+    };
+    main.showContentBeat(pendingContentBeat);
+    pendingContentBeat = 0;
+    pane.classList.add("is-ready");
+    requestAnimationFrame(() => requestAnimationFrame(clearTransition));
+    return;
+  }
+
   if (isTitle) {
     activeStep = current.step;
     showState(0);
@@ -732,6 +756,8 @@ function render() {
   if (current.page !== "index" && app.firstElementChild) showTransition();
   activeExhibit?.destroy();
   activeExhibit = null;
+  activeContent?.destroy();
+  activeContent = null;
   if (current.page === "model") {
     activeStep = null;
     liveModelView();
@@ -743,7 +769,7 @@ function render() {
     end.append(restart);
     replaceView(end);
     clearTransition();
-  } else if (current.page === "exhibit") {
+  } else if (current.page === "exhibit" || current.page === "content") {
     deck(current, routeVersion);
   } else if (current.page === "title") {
     activeStep = current.step;
@@ -762,7 +788,17 @@ function render() {
 
 function navigateExhibit(direction) {
   const current = route();
-  if (!["exhibit","title"].includes(current.page)) return;
+  if (!["exhibit","title","content"].includes(current.page)) return;
+  if (current.page === "content" && activeContent) {
+    if (direction > 0 && !activeContent.isRevealed()) {
+      app.querySelector(".deck")?.showContentBeat(1);
+      return;
+    }
+    if (direction < 0 && activeContent.isRevealed()) {
+      app.querySelector(".deck")?.showContentBeat(0);
+      return;
+    }
+  }
   const sequence = steps();
   const position = sequence.findIndex(item => item.id === current.step?.id);
   if (position < 0) return;
@@ -778,7 +814,10 @@ function navigateExhibit(direction) {
     history.replaceState(null, "", stepHref(next));
     hidePaneId();
     if (direction > 0) startStepPhases(next);
-  } else location.hash = stepHref(next);
+  } else {
+    pendingContentBeat = next.kind === "content" && direction < 0 ? 1 : 0;
+    location.hash = stepHref(next);
+  }
 }
 
 window.addEventListener("hashchange", render);
@@ -812,7 +851,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("keydown", event => {
   if (event.target.closest?.("input, textarea, select")) return;
   const current = route();
-  if (!["exhibit","title"].includes(current.page) ||
+  if (!["exhibit","title","content"].includes(current.page) ||
     !["Space", "ArrowRight", "ArrowLeft", "Escape", "KeyF", "KeyI"].includes(event.code)) return;
   event.preventDefault();
   if (event.code === "KeyI") {
