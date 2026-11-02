@@ -5,7 +5,7 @@ export const defaultTitleConfiguration = {
   enabled: true,
   slides: [
     { id:"opening", type:"title", title:"Exploring SBI Architectures",
-      subtitle:"Space-Based Interceptors & Strategic Stability",
+      subtitle:"Space-Based Interceptors and Strategic Stability",
       support:"Fernando Miranda España and Nathan O'Brien\nNovember 2, 2026\nGeorgia Institute of Technology",
       agenda:[], highlight:0, before:"geographic-input", enabled:true },
     { id:"speakers", type:"speakers", title:"Speaker Introduction",
@@ -83,6 +83,8 @@ export function loadTitleConfiguration() {
         person.photo ||= defaultTitleConfiguration.slides[1].speakers[index]?.photo;
       });
       const savedOpening = saved.slides.find(slide => slide.id === "opening");
+      if (savedOpening?.subtitle === "Space-Based Interceptors & Strategic Stability")
+        savedOpening.subtitle = defaultTitleConfiguration.slides[0].subtitle;
       const oldByline = "Fernando Miranda España · Nathan O'Brien · ";
       if (savedOpening?.support?.startsWith(oldByline))
         savedOpening.support = "Fernando Miranda España and Nathan O'Brien\n" +

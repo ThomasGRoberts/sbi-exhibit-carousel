@@ -1,4 +1,4 @@
-import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?speaker-portraits=1";
+import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?project-title-and=1";
 
 function node(tag, className, text) {
   const value = document.createElement(tag);

@@ -2,8 +2,8 @@ import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?persistent-invitation=1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js?speaker-portraits=1";
-import { buildTitleEditor } from "./title-editor.js?speaker-portraits=1";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?project-title-and=1";
+import { buildTitleEditor } from "./title-editor.js?project-title-and=1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
