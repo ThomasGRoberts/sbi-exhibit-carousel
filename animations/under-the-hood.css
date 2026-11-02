@@ -15,12 +15,6 @@
 .under-hood .candidate-orbits { left:45%; }
 .under-hood .integer-program { left:69%; }
 .under-hood .output { top:72%;left:45%;background:#b3a369;color:#003057; }
-.under-hood .reveal { opacity:0;visibility:hidden;transition:opacity .4s ease,visibility 0s .4s; }
-.under-hood[data-beat="1"] .reveal { opacity:1;visibility:visible;
-  transition:opacity .4s ease,visibility 0s; }
 @media(max-width:760px) {
   .under-hood .node { font-size:clamp(9px,1.55cqw,23px); }
-}
-@media(prefers-reduced-motion:reduce) {
-  .under-hood .reveal,.under-hood[data-beat="1"] .reveal { transition:none; }
 }

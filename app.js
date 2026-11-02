@@ -1,7 +1,7 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?persistent-invitation=1";
-import { createUnderHoodDiagram } from "./animations/under-the-hood.js?threat-characterization-1";
+import { createUnderHoodDiagram } from "./animations/under-the-hood.js?all-visible-1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
   TITLE_STORAGE_KEY } from "./presentation-sequence.js?slide23-1";
 import { buildTitleEditor } from "./title-editor.js?slide23-1";
@@ -37,7 +37,6 @@ let modelLoadTimer = 0;
 let paneToastTimer = 0;
 let pendingFullscreenRestore = false;
 let modelReturnInFlight = false;
-let pendingContentBeat = 0;
 let titleConfiguration = loadTitleConfiguration();
 titleConfiguration.enabled = true;
 const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds,
@@ -671,13 +670,6 @@ async function deck(current, version) {
   if (isContent) {
     activeStep = current.step;
     activeContent = createUnderHoodDiagram(host);
-    main.showContentBeat = beat => {
-      if (beat) activeContent.reveal();
-      else activeContent.reset();
-      navigationHint.querySelector(".hint-action").textContent = beat ? "next" : "reveal";
-    };
-    main.showContentBeat(pendingContentBeat);
-    pendingContentBeat = 0;
     pane.classList.add("is-ready");
     requestAnimationFrame(() => requestAnimationFrame(clearTransition));
     return;
@@ -789,16 +781,6 @@ function render() {
 function navigateExhibit(direction) {
   const current = route();
   if (!["exhibit","title","content"].includes(current.page)) return;
-  if (current.page === "content" && activeContent) {
-    if (direction > 0 && !activeContent.isRevealed()) {
-      app.querySelector(".deck")?.showContentBeat(1);
-      return;
-    }
-    if (direction < 0 && activeContent.isRevealed()) {
-      app.querySelector(".deck")?.showContentBeat(0);
-      return;
-    }
-  }
   const sequence = steps();
   const position = sequence.findIndex(item => item.id === current.step?.id);
   if (position < 0) return;
@@ -815,7 +797,6 @@ function navigateExhibit(direction) {
     hidePaneId();
     if (direction > 0) startStepPhases(next);
   } else {
-    pendingContentBeat = next.kind === "content" && direction < 0 ? 1 : 0;
     location.hash = stepHref(next);
   }
 }
