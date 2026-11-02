@@ -192,6 +192,16 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 }
 .threat-stage .scenarioCardArrow { display:none;font-weight:650; }
 .threat-stage .scenarioCard[data-selected="true"] .scenarioCardArrow { display:inline; }
+.threat-stage .scenarioCardSiteHalo { fill:none;stroke:#b88b13;stroke-width:1.1;opacity:0;transform-box:fill-box;transform-origin:center; }
+.threat-stage .scenarioCardSite { fill:#b88b13;stroke:none; }
+.threat-stage .scenarioCard[data-selected="false"] .scenarioCardSiteHalo,
+.threat-stage .scenarioCard[data-selected="false"] .scenarioCardSite { display:none; }
+.threat-stage.show-all-sites .scenarioCard[data-selected="false"] .scenarioCardSite { display:inline; }
+.threat-stage .scenarioCard[data-pulsing="true"] .scenarioCardSiteHalo { animation:threat-site-pulse 1.25s ease-out 1 both; }
+@keyframes threat-site-pulse {
+  0% { transform:scale(.6);opacity:0; } 18% { opacity:.7; }
+  100% { transform:scale(2.3);opacity:0; }
+}
 .threat-stage .threat-zoom {
   position:absolute;z-index:3;pointer-events:none;
   transition:left 1.25s cubic-bezier(.22,1,.36,1),top 1.25s cubic-bezier(.22,1,.36,1),
@@ -202,6 +212,17 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   left:0!important;top:0!important;width:100%!important;height:100%!important;
   border:0;border-radius:0;box-shadow:none;
 }
+.threat-stage .threat-zoom .scenarioCardSiteHalo,
+.threat-stage .threat-zoom .scenarioCardSite { display:none; }
+.iran-site-reveal { opacity:0;transition:opacity .35s ease; }
+.iran-site-reveal.is-visible { opacity:1; }
+.iran-site-leader { fill:none;stroke:#947318;stroke-width:.45;vector-effect:non-scaling-stroke; }
+.iran-site-pulse { fill:none;stroke:#b88b13;stroke-width:.65;opacity:0;transform-box:fill-box;transform-origin:center; }
+.iran-site-reveal.is-visible .iran-site-pulse { animation:threat-site-pulse 1.25s ease-out 1 both; }
+.iran-site-halo { fill:#fff;stroke:#b88b13;stroke-width:.55; }
+.iran-site-core { fill:#b88b13; }
+.iran-site-label { fill:#3d3d3d;stroke:#fff;stroke-width:.7;paint-order:stroke;
+  font:700 2.2px Roboto,Arial,sans-serif; }
 .threat-stage.is-paused * { animation-play-state:paused!important; }
 @media (max-width:800px) {
   .threat-grid { gap:6px;padding:8px; }
@@ -339,6 +360,11 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   padding:5px 7px; pointer-events:none; white-space:nowrap; letter-spacing:.01em; }
 .constellation-note strong { display:block; color:#444; font-size:12px; font-weight:700; }
 .threat-grid { width:min(70%,720px); }
+.threat-stage .iran-site-pulse { fill:none;stroke:#b88b13;stroke-width:1.15; }
+.threat-stage .iran-site-core { fill:#b88b13;stroke:none; }
+.threat-stage .iran-site-reveal.is-visible .iran-site-pulse {
+  animation:threat-site-pulse 1.4s ease-out 1 both; }
+.threat-zoom .iran-site-core { transform-box:fill-box;transform-origin:center;transform:scale(.32); }
 .threat-stage .scenarioCardMap { transform:scale(1.055); transform-origin:center; }
 .threat-stage .scenarioCard[data-region="russia"] .scenarioCardMap { transform:scale(1.015); }
 .threat-stage .threat-zoom .iran-globe { position:absolute; z-index:2; inset:0;
@@ -481,17 +507,19 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   .sequence-checkbox { left:7px;width:15px;height:15px; }
 }
 
-/* Exact ESPL SBI project-page model-link motif, sized within the 16:9 pane. */
-.model-link { position:absolute;left:2%;bottom:2.3%;z-index:20;display:flex;
-  align-items:center;width:34px;height:34px;color:#555;text-decoration:none;
+/* ESPL SBI project-page invitation dimensions and title-aligned gutter. */
+.model-link { position:absolute;left:max(28px,calc((100% - 1080px)/2 + 28px));
+  bottom:10px;z-index:20;display:flex;
+  align-items:center;width:46px;height:46px;color:#555;text-decoration:none;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   visibility:hidden;opacity:0;transform:translateY(72px);pointer-events:none;
   transition:transform .7s cubic-bezier(.16,1,.3,1),opacity .25s ease; }
 .model-link.is-arrived { visibility:visible;opacity:1;transform:translateY(0);pointer-events:auto; }
-.model-link-icon { position:relative;z-index:2;width:34px;height:34px;flex:0 0 34px; }
-.model-link-canvas { position:absolute;top:-5px;left:-5px;width:44px;height:44px;
+.model-link-icon { position:relative;z-index:2;width:46px;height:46px;flex:0 0 46px; }
+.model-link-canvas { position:absolute;top:-6px;left:-6px;width:58px;height:58px;
   display:block;opacity:.9;transition:opacity .24s ease; }
 .model-link:hover .model-link-canvas,.model-link:focus-visible .model-link-canvas { opacity:1; }
-.model-link-label { position:absolute;top:0;left:34px;height:34px;display:flex;
+.model-link-label { position:absolute;top:0;left:46px;height:46px;display:flex;
   align-items:center;white-space:nowrap;padding-left:10px;opacity:0;
   clip-path:inset(0 100% 0 0);color:#666;
   font-size:clamp(11px,1.05vw,15px);font-weight:400;

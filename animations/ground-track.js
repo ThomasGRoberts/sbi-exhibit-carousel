@@ -88,13 +88,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   footprint.add(footprintFill,footprintBoundary);
   footprintFill.renderOrder=3;
   footprintBoundary.renderOrder=4;
-  footprint.renderOrder=5;scene.add(footprint);
+  // A nonzero group order would draw the transparent footprint after the
+  // satellite regardless of the children's own render orders.
+  footprint.renderOrder=0;scene.add(footprint);
   const orbitGeometry=new THREE.BufferGeometry();
   const orbit=new THREE.LineLoop(orbitGeometry,new THREE.LineBasicMaterial({
     color:0x929292,transparent:true,opacity:.72}));scene.add(orbit);
   const satellite=new THREE.Points(new THREE.BufferGeometry().setAttribute("position",
     new THREE.Float32BufferAttribute([0,0,0],3)),new THREE.PointsMaterial({
-    map:circleTexture("#bdbdbd","#777777",15),size:13,sizeAttenuation:false,
+    map:circleTexture("#8c8c8c","#555555",15),size:13,sizeAttenuation:false,
     transparent:true,depthTest:true,depthWrite:false,alphaTest:.04}));
   satellite.frustumCulled=false;satellite.renderOrder=20;scene.add(satellite);
   const camera=new THREE.OrthographicCamera(-2,2,2,-2,.01,100);
@@ -260,6 +262,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const footprintCamera=position.clone().normalize().multiplyScalar(overviewCamera.length());
     camera.position.copy(overviewCamera).lerp(footprintCamera,cameraBlend);
     camera.lookAt(0,0,0);
+    // When the camera follows the front-facing satellite, its marker must
+    // composite after the translucent ground footprint.
+    satellite.material.depthTest=!(stage===1&&position.dot(camera.position)>0);
     renderer.setScissorTest(true);
     renderer.setViewport(0,0,leftWidth,height);renderer.setScissor(0,0,leftWidth,height);
     renderer.render(scene,camera);renderer.setScissorTest(false);

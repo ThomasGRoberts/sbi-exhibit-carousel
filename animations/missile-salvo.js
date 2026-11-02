@@ -1,8 +1,10 @@
 import * as THREE from "three";
-import { makeEarth, makeRegion, latLonVector } from "./globe-geometry.js";
-import { MISSILE_BLACK_CSS, MISSILE_DOT_RADIUS_PX, blackTrailGradient } from "./sbi-style.js";
+import { makeEarth, makeRegion, latLonVector, mainBoundary } from "./globe-geometry.js?50m-boundary=1";
+import { SBI_GOLD_CSS, MISSILE_BLACK_CSS, SITE_DOT_RADIUS_PX,
+  MISSILE_DOT_RADIUS_PX, blackTrailGradient } from "./sbi-style.js";
 const NORTH_KOREA_PANES=[4,5,6];
 const IRAN_SALVO_PANES=[2];
+const GOLD=SBI_GOLD_CSS;
 const DARK="#4a4a4a";
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x);return x*x*(3-2*x);};
@@ -29,14 +31,16 @@ function makeScenario(raw) {
         end:latLonVector(...shot.target),
         peakFactor:shot.peakFactor
       },i/120))
-    }))
+    })),
+    sites:[...new Map(raw.missiles.map(shot=>
+      [shot.site.join(","),latLonVector(...shot.site)])).values()]
   };
 }
 export async function createAnimation(host,{onStateChange=()=>{},mode="north-korea"}={}) {
   const paneStates=mode==="iran-salvo"?IRAN_SALVO_PANES:NORTH_KOREA_PANES;
   const [data,geojson]=await Promise.all([
     fetch(new URL("../assets/salvo-scenarios.json",import.meta.url)).then(response=>response.json()),
-    fetch(new URL("../assets/countries.geo.json",import.meta.url)).then(response=>response.json())
+    fetch(new URL("../assets/countries-50m.geo.json",import.meta.url)).then(response=>response.json())
   ]);
   const scenarios=data.scenarios.filter(item=>["iran","nk"].includes(item.id))
     .map(makeScenario);
@@ -51,9 +55,9 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
   const regions=scenarios.map(scenario=>{
     const name=scenario.id==="iran"?"Iran":"North Korea";
     const feature=geojson.features.find(item=>item.properties?.name===name);
-    if(!feature||feature.geometry.type!=="Polygon")
+    if(!feature)
       throw new Error("Country boundary missing: "+name);
-    const boundary=feature.geometry.coordinates[0].map(([lon,lat])=>[lat,lon]);
+    const boundary=mainBoundary(feature.geometry);
     const region=makeRegion(boundary);
     region.fill.material.opacity=.82;
     region.outline.visible=false;
@@ -82,7 +86,7 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
   overlay.className="salvo-overlay";host.append(overlay);
   const context=overlay.getContext("2d");
   let width=1,height=1,ratio=1,stateIndex=paneStates[0],paneIndex=0;
-  let elapsed=0,paused=true,destroyed=false;
+  let elapsed=0,sitePulseSeconds=0,paused=true,destroyed=false;
   let raf=0,lastFrame=0;
   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frameNumber(scenario) {
@@ -160,6 +164,33 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
       }
     }
   }
+  function drawSites(scenario,view,frame) {
+    const r=scenario.id==="nk"?
+      1.3+(SITE_DOT_RADIUS_PX-1.3)*Math.sqrt(
+        clamp((view.radiusPixels-250)/(4200-250))):
+      SITE_DOT_RADIUS_PX;
+    for(const [siteIndex,site] of scenario.sites.entries()) {
+      if(mode==="north-korea"&&stateIndex%4===2&&elapsed<siteIndex*.38)continue;
+      const p=project(site,view);
+      if(!p.visible)continue;
+      const reveal=mode==="north-korea"&&stateIndex%4===2?
+        ease((elapsed-siteIndex*.38)/.3):1;
+      circle(p.x,p.y,r*(.65+.35*reveal),GOLD,reveal);
+      if(mode==="north-korea"&&stateIndex%4===2&&reveal<1){
+        context.globalAlpha=1;
+        context.beginPath();context.arc(p.x,p.y,r+10*reveal,0,Math.PI*2);
+        context.strokeStyle=`rgba(184,139,19,${.62*(1-reveal)})`;
+        context.lineWidth=1.6;context.stroke();
+      }
+      if(stateIndex%4===1&&sitePulseSeconds<1.55){
+        const f=sitePulseSeconds/1.55;
+        context.beginPath();context.arc(p.x,p.y,r*(1.5+4*(1-(1-f)**2)),0,Math.PI*2);
+        context.strokeStyle=`rgba(184,139,19,${.68*(1-f)})`;
+        context.lineWidth=scenario.id==="nk"?Math.max(1.2,2.4*r/SITE_DOT_RADIUS_PX):2.4;
+        context.stroke();
+      }
+    }
+  }
   function render() {
     if(destroyed)return;
     const scenarioIndex=Math.floor(stateIndex/4),scenario=scenarios[scenarioIndex];
@@ -169,6 +200,7 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
     context.setTransform(ratio,0,0,ratio,0,0);
     context.clearRect(0,0,width,height);
     if(stateIndex%4>=2)drawRoutes(scenario,view,frame);
+    if(mode==="iran-salvo"&&stateIndex%4>=1)drawSites(scenario,view,frame);
     context.globalAlpha=1;
     host.dataset.stage=String(paneIndex+1);
     host.dataset.sourceStage=String(stateIndex+1);
@@ -180,12 +212,14 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
     host.dataset.lastArrivalFrame=scenario.lastArrivalFrame.toFixed(2);
     host.dataset.impactCount=String(scenario.shots.filter(shot=>
       frame>=shot.launchFrame+shot.durationFrames).length);
-    host.dataset.visibleSiteCount="0";
+    host.dataset.visibleSiteCount=String(mode==="north-korea"?0:stateIndex%4===2?
+      Math.min(scenario.sites.length,Math.floor(elapsed/.38)+1):scenario.sites.length);
   }
   function tick(now) {
     if(paused||destroyed)return;
     const delta=Math.min(100,Math.max(0,now-lastFrame));lastFrame=now;
     if(stateIndex%4===2)elapsed+=delta/1000;
+    if(stateIndex%4===1)sitePulseSeconds+=delta/1000;
     render();raf=requestAnimationFrame(tick);
   }
   function schedule(){
@@ -194,7 +228,7 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
   }
   function goToState(index) {
     if(destroyed||index<0||index>=paneStates.length||index===paneIndex)return false;
-    paneIndex=index;stateIndex=paneStates[index];
+    paneIndex=index;stateIndex=paneStates[index];sitePulseSeconds=0;
     elapsed=reducedMotion&&stateIndex%4===2?
       scenarios[Math.floor(stateIndex/4)].stopFrame*.07/PLAYBACK_RATE:0;
     onStateChange(index,paneStates.length);render();schedule();return true;
@@ -202,6 +236,7 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
   function jumpToState(index){
     if(index<0||index>=paneStates.length)return;
     paneIndex=index;stateIndex=paneStates[index];
+    sitePulseSeconds=stateIndex%4===1?0:2;
     elapsed=0;
     onStateChange(index,paneStates.length);render();
   }

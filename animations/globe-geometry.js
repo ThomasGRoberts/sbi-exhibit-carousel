@@ -19,6 +19,15 @@ export function latLonVector(lat, lon, radius = 1) {
   );
 }
 
+export function mainBoundary(geometry) {
+  const polygons = geometry?.type === "Polygon" ? [geometry.coordinates] :
+    geometry?.type === "MultiPolygon" ? geometry.coordinates : [];
+  if (!polygons.length) return [];
+  const outer = polygons.map(polygon => polygon[0])
+    .reduce((largest, ring) => ring.length > largest.length ? ring : largest, []);
+  return outer.map(([lon, lat]) => [lat, lon]);
+}
+
 export function makeEarth(geojson) {
   const group = new THREE.Group();
   const sphere = new THREE.Mesh(

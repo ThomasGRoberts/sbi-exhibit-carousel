@@ -10,7 +10,7 @@ export function createModelLink(container, { variant = "small", onActivate,
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.setAttribute("aria-label", "Explore the interactive SBI model");
-  link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the Interactive Model&nbsp; →</span>';
+  link.innerHTML = '<span class="model-link-icon" aria-hidden="true"><canvas class="model-link-canvas" width="116" height="116"></canvas></span><span class="model-link-label">Explore the interactive model&nbsp; →</span>';
   link.addEventListener("click", event => {
     event.stopPropagation();
     if (onActivate) {
@@ -34,8 +34,8 @@ export function createModelLink(container, { variant = "small", onActivate,
     return () => link.remove();
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.setSize(variant === "transition" ? 144 : 44,
-    variant === "transition" ? 144 : 44, false);
+  renderer.setSize(variant === "transition" ? 144 : 58,
+    variant === "transition" ? 144 : 58, false);
   renderer.setClearColor(0, 0);
   scene.add(new THREE.AmbientLight(0xffffff, .75));
   const key = new THREE.DirectionalLight(0xffffff, 1.3);
@@ -116,7 +116,27 @@ export function createModelLink(container, { variant = "small", onActivate,
   link.addEventListener("focusin", reveal);
   link.addEventListener("mouseleave", retract);
   link.addEventListener("focusout", retract);
-  later(() => { link.classList.add("is-arrived"); if (alwaysOpen) reveal(); }, 1100);
+  later(() => {
+    link.classList.add("is-arrived");
+    later(() => {
+      reveal();
+      if (!alwaysOpen) later(retract, 2600);
+    }, 700);
+  }, 1100);
+  if (!alwaysOpen) {
+    const attentionCycle = () => later(() => {
+      if (!open && !reduced.matches) {
+        link.classList.add("is-nudging");
+        reveal();
+        later(() => {
+          link.classList.remove("is-nudging");
+          retract();
+        }, 2200);
+      }
+      attentionCycle();
+    }, 18000);
+    attentionCycle();
+  }
   return () => {
     destroyed = true;
     cancelAnimationFrame(frame);

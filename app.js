@@ -1,6 +1,6 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
-import { createModelLink } from "./model-link.js?invitation=3";
+import { createModelLink } from "./model-link.js?project-page-match=1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
   TITLE_STORAGE_KEY } from "./presentation-sequence.js?integrated-model-1";
 import { buildTitleEditor } from "./title-editor.js?integrated-model-1";
@@ -570,7 +570,7 @@ async function deck(current, version) {
     }
   }
   main.disposeModelLink = createModelLink(host, {
-    variant:"small", alwaysOpen:true, onActivate:enterLiveModel
+    variant:"small", onActivate:enterLiveModel
   });
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");

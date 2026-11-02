@@ -146,8 +146,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     left.root.rotation.y=yaw-OMEGA*clock;
     right.root.rotation.y=IRAN_VIEW_YAW-OMEGA*clock;
     left.earth.rotation.y=right.earth.rotation.y=OMEGA*clock;
-    left.root.position.x=-1.85*layout;
-    right.root.position.x=3.8-1.95*layout;
+    left.root.position.x=-1.55*layout;
+    right.root.position.x=3.8-2.25*layout;
     const comparisonShift=stage===2?ease(elapsed/.65):0;
     left.root.position.y=right.root.position.y=-.32*comparisonShift;
     right.root.visible=stage>=1;
