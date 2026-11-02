@@ -79,26 +79,28 @@
 .title-support[hidden] { display:none; }
 .title-support-line { display:block; }
 .title-support-name { font-weight:650;white-space:nowrap; }
-.title-support-and { font-weight:400; }
+.title-support-and { color:#808080;font-weight:300; }
 .title-stage.is-opening .title-block { width:min(68%,980px);padding-left:2vw; }
 .title-stage.is-opening .title-block h1 { font-size:clamp(36px,5.4vw,82px); }
 .title-stage.is-opening .title-subtitle { font-size:clamp(18px,2.05vw,32px); }
 .title-stage.is-opening .title-support { margin-top:1.7em;
   font-size:clamp(16px,1.45vw,23px);line-height:1.45; }
-.title-stage.is-opening .title-support-line + .title-support-line { margin-top:.22em; }
-.title-stage.is-speakers .title-block { top:19%;transform:none;width:min(74%,950px);
-  padding-left:2vw; }
-.title-stage.is-speakers .title-block h1 { font-size:clamp(36px,4.4vw,66px); }
-.title-stage.is-speakers .title-subtitle { font-size:clamp(18px,1.8vw,27px); }
-.speaker-grid { position:absolute;z-index:3;top:51%;
+.title-stage.is-opening .title-support-line:not(:first-child) {
+  color:#777;font-size:clamp(12px,.72em,17px);font-weight:400;line-height:1.35; }
+.title-stage.is-opening .title-support-line:nth-child(2) { margin-top:.55em; }
+.title-stage.is-opening .title-support-line:nth-child(3) { margin-top:.18em; }
+.speaker-grid { position:absolute;z-index:3;top:50%;transform:translateY(-50%);
   left:max(28px,calc((100% - 1080px)/2 + 28px));
   right:max(28px,calc((100% - 1080px)/2 + 28px));
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,3vw,52px); }
-.speaker-card { min-width:0;border-top:3px solid #b5a269;padding-top:18px; }
-.speaker-name { margin:0;color:#202020;font:650 clamp(21px,2vw,29px)/1.18
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,2.5vw,40px); }
+.speaker-card { min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center; }
+.speaker-photo { display:block;width:min(100%,310px);aspect-ratio:1;object-fit:contain; }
+.speaker-name { display:flex;align-items:flex-end;justify-content:center;
+  min-height:2.36em;margin:10px 0 0;color:#202020;
+  font:650 clamp(18px,1.55vw,23px)/1.18
   -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:-.025em; }
-.speaker-role { margin:12px 0 0;color:#74652f;
-  font:600 clamp(12px,1.1vw,16px)/1.25 Roboto,Arial,sans-serif;
+.speaker-role { margin:7px 0 0;color:#74652f;
+  font:600 clamp(12px,1vw,15px)/1.25 Roboto,Arial,sans-serif;
   letter-spacing:.025em; }
 .title-agenda { display:flex;flex-direction:column;align-items:flex-start;gap:.6em;
   margin:1.8em 0 0;padding:0;list-style:none;
@@ -191,15 +193,14 @@
   .title-stage.is-opening .title-block h1 { font-size:clamp(27px,6.2vw,42px); }
   .title-stage.is-opening .title-subtitle { font-size:clamp(15px,3.6vw,23px); }
   .title-stage.is-opening .title-support { font-size:clamp(13px,2.8vw,18px); }
-  .title-stage.is-speakers .title-block { top:17%;width:calc(100% - 48px);
-    padding-left:14px; }
-  .title-stage.is-speakers .title-block h1 { font-size:clamp(27px,6.2vw,42px); }
-  .title-stage.is-speakers .title-subtitle { font-size:clamp(15px,3.6vw,23px); }
-  .speaker-grid { top:43%;left:clamp(24px,6vw,40px);right:clamp(24px,6vw,40px);
-    grid-template-columns:1fr;gap:15px; }
-  .speaker-card { padding-top:7px;border-top-width:2px; }
-  .speaker-name { font-size:clamp(17px,4vw,24px); }
-  .speaker-role { margin-top:4px;font-size:clamp(11px,2.7vw,15px); }
+  .speaker-grid { left:clamp(24px,6vw,40px);right:clamp(24px,6vw,40px);
+    grid-template-columns:1fr;gap:14px; }
+  .speaker-card { display:grid;grid-template-columns:96px 1fr;
+    grid-template-rows:1fr auto;column-gap:12px;align-items:center;text-align:left; }
+  .speaker-photo { grid-row:1 / 3;width:96px; }
+  .speaker-name { display:block;min-height:0;margin:0;align-self:end;
+    font-size:clamp(15px,3.7vw,20px); }
+  .speaker-role { margin-top:4px;align-self:start;font-size:clamp(11px,2.7vw,14px); }
   .title-agenda { gap:.8em;margin-top:1em; }
   .configuration-button { font-size:10px; }
 }

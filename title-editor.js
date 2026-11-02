@@ -1,4 +1,4 @@
-import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?opening-slide-1";
+import { buildPresentationSteps, titlePaneId } from "./presentation-sequence.js?speaker-portraits=1";
 
 function node(tag, className, text) {
   const value = document.createElement(tag);
@@ -142,8 +142,10 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       action.addEventListener("change", () => { slide.action = action.checked ? "model" : undefined; changed(); });
       actionLabel.append(action,node("span", "", "Show SBI model shortcut"));
       actionLabel.hidden = slide.id !== "results";
-      card.append(bar, field("Title",slide.title,value => { slide.title=value; }),
-        field("Subtitle",slide.subtitle||"",value => { slide.subtitle=value; }),
+      card.append(bar,
+        ...(slide.id === "speakers" ? [] : [
+          field("Title",slide.title,value => { slide.title=value; }),
+          field("Subtitle",slide.subtitle||"",value => { slide.subtitle=value; })]),
         ...(slide.id === "opening" ? [field("Presenters, date, and institution (one line each)",
           slide.support||"",value => { slide.support=value; },true)] : []),
         type,position,agenda,highlight,actionLabel);

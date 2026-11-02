@@ -2,8 +2,8 @@ import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?persistent-invitation=1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js?speaker-introduction=1";
-import { buildTitleEditor } from "./title-editor.js?speaker-introduction=1";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?speaker-portraits=1";
+import { buildTitleEditor } from "./title-editor.js?speaker-portraits=1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
@@ -555,16 +555,20 @@ async function deck(current, version) {
       });
       block.append(list);
     }
-    host.append(block);
+    if (!isSpeakers) host.append(block);
     const speakerCards=[];
     if (isSpeakers) {
       const grid=element("div","speaker-grid");
       (slide.speakers || []).forEach(person => {
         const card=element("article","speaker-card");
+        const photo=element("img","speaker-photo");
+        photo.src=person.photo || "";
+        photo.alt=person.name;
+        photo.decoding="async";
         const name=element("h2","speaker-name",person.name);
         const role=element("p","speaker-role",person.role);
-        card.append(name,role);grid.append(card);
-        speakerCards.push({name,role});
+        card.append(photo,name,role);grid.append(card);
+        speakerCards.push({photo,name,role});
       });
       host.append(grid);
     }
@@ -593,18 +597,21 @@ async function deck(current, version) {
       wrapper.append(input);
       editor.append(wrapper);
     }
-    addField("Main title", slide.title, value => {
-      slide.title = value; titleText.textContent = value;
-      main.setAttribute("aria-label", "Presentation title: " + value);
-    });
-    addField("Subtitle", slide.subtitle || "", value => {
-      slide.subtitle = value; subtitle.textContent = value; subtitle.hidden = !value;
-    });
+    if (!isSpeakers) {
+      addField("Main title", slide.title, value => {
+        slide.title = value; titleText.textContent = value;
+        main.setAttribute("aria-label", "Presentation title: " + value);
+      });
+      addField("Subtitle", slide.subtitle || "", value => {
+        slide.subtitle = value; subtitle.textContent = value; subtitle.hidden = !value;
+      });
+    }
     if (slide.id === "opening") addField("Presenters, date, and institution (one line each)",
       slide.support || "", value => { slide.support = value; main.updateSupport(value); }, true);
     if (isSpeakers) (slide.speakers || []).forEach((person,index) => {
       addField(`Speaker ${index+1} name`,person.name,value => {
         person.name=value;speakerCards[index].name.textContent=value;
+        speakerCards[index].photo.alt=value;
       });
       addField(`Speaker ${index+1} role`,person.role,value => {
         person.role=value;speakerCards[index].role.textContent=value;

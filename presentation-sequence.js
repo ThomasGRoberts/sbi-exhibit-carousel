@@ -8,12 +8,12 @@ export const defaultTitleConfiguration = {
       subtitle:"Space-Based Interceptors & Strategic Stability",
       support:"Fernando Miranda España and Nathan O'Brien\nNovember 2, 2026\nGeorgia Institute of Technology",
       agenda:[], highlight:0, before:"geographic-input", enabled:true },
-    { id:"speakers", type:"speakers", title:"Meet the Speakers",
-      subtitle:"Engineering Space Policy Laboratory",
+    { id:"speakers", type:"speakers", title:"Speaker Introduction",
+      subtitle:"",
       speakers:[
-        {name:"Fernando Miranda España",role:"Policy Lead"},
-        {name:"Nathan O'Brien",role:"Tech Lead"},
-        {name:"Thomas González Roberts",role:"Lab Director"}
+        {name:"Fernando Miranda España",role:"Policy Lead",photo:"assets/speakers/fernando.jpg"},
+        {name:"Nathan O'Brien",role:"Tech Lead",photo:"assets/speakers/nathan.png"},
+        {name:"Thomas González Roberts",role:"Lab Director",photo:"assets/speakers/thomas.jpg"}
       ],agenda:[],highlight:0,before:"geographic-input",enabled:true },
     { id:"threat-region", type:"agenda", title:"How Do We Characterize a Threat?",
       subtitle:"", agenda:["Geographic Region","Salvo Size"], highlight:0,
@@ -76,6 +76,12 @@ export function loadTitleConfiguration() {
       if (openingIndex > 0) saved.slides.unshift(saved.slides.splice(openingIndex, 1)[0]);
       if (!saved.slides.some(slide => slide.id === "speakers"))
         saved.slides.splice(1,0,structuredClone(defaultTitleConfiguration.slides[1]));
+      const savedSpeakers=saved.slides.find(slide=>slide.id==="speakers");
+      if(savedSpeakers?.title==="Meet the Speakers")savedSpeakers.title="Speaker Introduction";
+      if(savedSpeakers?.subtitle==="Engineering Space Policy Laboratory")savedSpeakers.subtitle="";
+      savedSpeakers?.speakers?.forEach((person,index)=>{
+        person.photo ||= defaultTitleConfiguration.slides[1].speakers[index]?.photo;
+      });
       const savedOpening = saved.slides.find(slide => slide.id === "opening");
       const oldByline = "Fernando Miranda España · Nathan O'Brien · ";
       if (savedOpening?.support?.startsWith(oldByline))
