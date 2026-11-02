@@ -11,7 +11,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
   const panel = node("section", "title-editor");
   const heading = node("h2", "", "Presentation Titles");
   const intro = node("p", "editor-intro",
-    "Edit title slides here. Changes affect the carousel immediately and are saved in this browser.");
+    "Edit title slides here. The closing slide repeats the opening slide. Changes are saved in this browser.");
   const controls = node("div", "editor-controls");
   const add = node("button", "editor-button", "Add title slide");
   add.type = "button";
@@ -84,7 +84,8 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       enabled.append(check, node("span", "", "Slide "+(index+1)));
       const moveUp = node("button", "editor-small-button", "↑");
       moveUp.type = "button"; moveUp.title = "Move earlier";
-      moveUp.disabled = index === 0 || config.slides[index-1]?.id === "opening";
+      moveUp.disabled = index === 0 || ["opening","speakers"].includes(slide.id) ||
+        ["opening","speakers"].includes(config.slides[index-1]?.id);
       moveUp.addEventListener("click", () => {
         [config.slides[index-1].before,config.slides[index].before] =
           [config.slides[index].before,config.slides[index-1].before];
@@ -93,7 +94,8 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       });
       const moveDown = node("button", "editor-small-button", "↓");
       moveDown.type = "button"; moveDown.title = "Move later";
-      moveDown.disabled = index === config.slides.length-1 || slide.id === "opening";
+      moveDown.disabled = index === config.slides.length-1 ||
+        ["opening","speakers"].includes(slide.id);
       moveDown.addEventListener("click", () => {
         [config.slides[index+1].before,config.slides[index].before] =
           [config.slides[index].before,config.slides[index+1].before];
@@ -102,13 +104,15 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
       });
       const remove = node("button", "editor-small-button", "Remove");
       remove.type = "button";
-      remove.disabled = slide.id === "opening";
+      remove.disabled = ["opening","speakers"].includes(slide.id);
       remove.addEventListener("click", () => { config.slides.splice(index,1); changed(); });
       bar.append(enabled,moveUp,moveDown,remove);
       const type = node("select", "editor-select");
-      for (const kind of slide.id === "results" ? ["visual"] : ["title","agenda"]) {
+      for (const kind of slide.id === "results" ? ["visual"] :
+        slide.id === "speakers" ? ["speakers"] : ["title","agenda"]) {
         const option = node("option", "", kind === "title" ? "Title" :
-          kind === "agenda" ? "Agenda" : "Visual model invitation");
+          kind === "agenda" ? "Agenda" : kind === "speakers" ?
+            "Speaker introduction" : "Visual model invitation");
         option.value = kind; type.append(option);
       }
       type.value = slide.type;
@@ -119,7 +123,7 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
         option.value = exhibit.id; position.append(option);
       }
       position.value = slide.before;
-      position.hidden = slide.id === "opening";
+      position.hidden = ["opening","speakers"].includes(slide.id);
       position.addEventListener("change", () => { slide.before = position.value; changed(); });
       const agenda = field("Agenda items (one per line)", (slide.agenda||[]).join("\n"),
         value => { slide.agenda = value.split("\n").map(item => item.trim()).filter(Boolean); }, true);
@@ -143,6 +147,12 @@ export function buildTitleEditor(exhibits, selection, config, onChange, onPrevie
         ...(slide.id === "opening" ? [field("Presenters, date, and institution (one line each)",
           slide.support||"",value => { slide.support=value; },true)] : []),
         type,position,agenda,highlight,actionLabel);
+      if (slide.id === "speakers") (slide.speakers || []).forEach((person,personIndex) => {
+        card.append(field(`Speaker ${personIndex+1} name`,person.name,
+          value => { person.name=value; }),
+        field(`Speaker ${personIndex+1} role`,person.role,
+          value => { person.role=value; }));
+      });
       cards.append(card);
     });
     drawPreview();

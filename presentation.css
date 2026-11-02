@@ -86,6 +86,20 @@
 .title-stage.is-opening .title-support { margin-top:1.7em;
   font-size:clamp(16px,1.45vw,23px);line-height:1.45; }
 .title-stage.is-opening .title-support-line + .title-support-line { margin-top:.22em; }
+.title-stage.is-speakers .title-block { top:19%;transform:none;width:min(74%,950px);
+  padding-left:2vw; }
+.title-stage.is-speakers .title-block h1 { font-size:clamp(36px,4.4vw,66px); }
+.title-stage.is-speakers .title-subtitle { font-size:clamp(18px,1.8vw,27px); }
+.speaker-grid { position:absolute;z-index:3;top:51%;
+  left:max(28px,calc((100% - 1080px)/2 + 28px));
+  right:max(28px,calc((100% - 1080px)/2 + 28px));
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,3vw,52px); }
+.speaker-card { min-width:0;border-top:3px solid #b5a269;padding-top:18px; }
+.speaker-name { margin:0;color:#202020;font:650 clamp(21px,2vw,29px)/1.18
+  -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:-.025em; }
+.speaker-role { margin:12px 0 0;color:#74652f;
+  font:600 clamp(12px,1.1vw,16px)/1.25 Roboto,Arial,sans-serif;
+  letter-spacing:.025em; }
 .title-agenda { display:flex;flex-direction:column;align-items:flex-start;gap:.6em;
   margin:1.8em 0 0;padding:0;list-style:none;
   font-size:clamp(14px,1.65vw,25px);color:#656565; }
@@ -177,6 +191,15 @@
   .title-stage.is-opening .title-block h1 { font-size:clamp(27px,6.2vw,42px); }
   .title-stage.is-opening .title-subtitle { font-size:clamp(15px,3.6vw,23px); }
   .title-stage.is-opening .title-support { font-size:clamp(13px,2.8vw,18px); }
+  .title-stage.is-speakers .title-block { top:17%;width:calc(100% - 48px);
+    padding-left:14px; }
+  .title-stage.is-speakers .title-block h1 { font-size:clamp(27px,6.2vw,42px); }
+  .title-stage.is-speakers .title-subtitle { font-size:clamp(15px,3.6vw,23px); }
+  .speaker-grid { top:43%;left:clamp(24px,6vw,40px);right:clamp(24px,6vw,40px);
+    grid-template-columns:1fr;gap:15px; }
+  .speaker-card { padding-top:7px;border-top-width:2px; }
+  .speaker-name { font-size:clamp(17px,4vw,24px); }
+  .speaker-role { margin-top:4px;font-size:clamp(11px,2.7vw,15px); }
   .title-agenda { gap:.8em;margin-top:1em; }
   .configuration-button { font-size:10px; }
 }

@@ -168,6 +168,7 @@ export async function createAnimation(host,{onStateChange=()=>{},mode="north-kor
     const r=scenario.id==="nk"?
       1.3+(SITE_DOT_RADIUS_PX-1.3)*Math.sqrt(
         clamp((view.radiusPixels-250)/(4200-250))):
+      mode==="iran-salvo"?SITE_DOT_RADIUS_PX+1.5*(1-ease(clamp(elapsed/1.3))):
       SITE_DOT_RADIUS_PX;
     for(const [siteIndex,site] of scenario.sites.entries()) {
       if(mode==="north-korea"&&stateIndex%4===2&&elapsed<siteIndex*.38)continue;

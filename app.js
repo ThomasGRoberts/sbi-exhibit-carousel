@@ -1,12 +1,13 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
-import { createModelLink } from "./model-link.js?project-page-match=1";
+import { createModelLink } from "./model-link.js?persistent-invitation=1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js?opening-slide-1";
-import { buildTitleEditor } from "./title-editor.js?opening-slide-1";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?speaker-introduction=1";
+import { buildTitleEditor } from "./title-editor.js?speaker-introduction=1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
+let persistentModelLink = null;
 let activeStep = null;
 let phaseTimer = 0;
 let phaseToken = 0;
@@ -76,7 +77,10 @@ function renderOpeningSupport(container, value) {
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] === "model" && modelContext) return {page:"model"};
-  if (parts[0] === "end") return {page:"end"};
+  if (parts[0] === "end") {
+    const closing=steps().find(step=>step.id==="title-closing");
+    return closing?{page:"title",step:closing}:{page:"end"};
+  }
   if (parts[0] === "configurations") return {page:"index", showConfig:true};
   if (parts[0] === "present") {
     const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
@@ -106,14 +110,22 @@ function logicalPaneId(step) {
   const first = stateId(step.exhibit, step.start);
   return step.start === step.end ? first : first + "–" + stateId(step.exhibit, step.end);
 }
-function showPaneToast(step, force = false) {
+function hidePaneId() {
+  clearTimeout(paneToastTimer);
+  app.querySelector(".pane-id-toast")?.classList.remove("is-visible");
+  const control = app.querySelector(".pane-control");
+  if (control) control.hidden = true;
+}
+function showPaneToast(step) {
   clearTimeout(paneToastTimer);
   const toast = app.querySelector(".pane-id-toast");
-  if (!toast || !step || (!force && displayMode !== "presentation")) return;
+  if (!toast || !step) return;
+  const control = app.querySelector(".pane-control");
+  if (control) control.hidden = false;
   toast.textContent = logicalPaneId(step);
   toast.classList.remove("is-visible");
   requestAnimationFrame(() => toast.classList.add("is-visible"));
-  paneToastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2600);
+  paneToastTimer = setTimeout(hidePaneId, 3500);
 }
 function updateViewportAspect() {
   const width = document.fullscreenElement === app ? app.clientWidth : window.innerWidth;
@@ -370,8 +382,11 @@ async function toggleFullscreen(main) {
 async function deck(current, version) {
   const isTitle = current.page === "title";
   const slide = isTitle ? current.step.slide : null;
+  const isClosing = isTitle && current.step.id === "title-closing";
+  const isSpeakers = isTitle && slide.id === "speakers";
   const exhibit = isTitle ?
-    (slide.id === "opening" ? exhibits.find(item => selectedExhibitIds.has(item.id)) :
+    (isClosing ? exhibits.filter(item => selectedExhibitIds.has(item.id)).at(-1) :
+      slide.id === "opening" ? exhibits.find(item => selectedExhibitIds.has(item.id)) :
       exhibits.find(item => item.id === slide.before)) || exhibits[0] : current.exhibit;
   const { startAtEnd, requestedState } = current;
   const main = element("main", "deck");
@@ -409,6 +424,7 @@ async function deck(current, version) {
   const stage = element("div", "preview-stage");
   const switcher = element("div", "exhibit-switcher");
   const switcherCue = element("span", "exhibit-switcher-cue",
+    isClosing ? "Closing slide" : isSpeakers ? "Speaker introduction" :
     isTitle ? "Presentation title · before Exhibit " +
       String(exhibit.number).padStart(2,"0") : "Click to choose exhibit");
   const heading = element("h1", "exhibit-heading");
@@ -432,6 +448,7 @@ async function deck(current, version) {
   switcher.append(switcherCue, heading);
   const feedback = element("div", "feedback-controls");
   const paneControl = element("div", "pane-control");
+  paneControl.hidden = true;
   const stateLabel = element("button", "pane-id");
   stateLabel.type = "button";
   stateLabel.setAttribute("aria-label", "Copy Pane ID");
@@ -520,6 +537,7 @@ async function deck(current, version) {
     if (slide.id === "results") pane.classList.add("visual-invitation");
     host.classList.add("title-stage");
     if (slide.id === "opening") host.classList.add("is-opening");
+    if (isSpeakers) host.classList.add("is-speakers");
     const block = element("div", "title-block");
     const title = element("h1");
     const titleText = element("span", "", slide.title);
@@ -538,6 +556,18 @@ async function deck(current, version) {
       block.append(list);
     }
     host.append(block);
+    const speakerCards=[];
+    if (isSpeakers) {
+      const grid=element("div","speaker-grid");
+      (slide.speakers || []).forEach(person => {
+        const card=element("article","speaker-card");
+        const name=element("h2","speaker-name",person.name);
+        const role=element("p","speaker-role",person.role);
+        card.append(name,role);grid.append(card);
+        speakerCards.push({name,role});
+      });
+      host.append(grid);
+    }
     if (slide.id === "opening") {
       const support = element("p", "title-support");
       renderOpeningSupport(support, slide.support);
@@ -572,6 +602,14 @@ async function deck(current, version) {
     });
     if (slide.id === "opening") addField("Presenters, date, and institution (one line each)",
       slide.support || "", value => { slide.support = value; main.updateSupport(value); }, true);
+    if (isSpeakers) (slide.speakers || []).forEach((person,index) => {
+      addField(`Speaker ${index+1} name`,person.name,value => {
+        person.name=value;speakerCards[index].name.textContent=value;
+      });
+      addField(`Speaker ${index+1} role`,person.role,value => {
+        person.role=value;speakerCards[index].role.textContent=value;
+      });
+    });
     agendaRows.forEach((row, index) => addField("Agenda item " + (index+1),
       slide.agenda[index], value => { slide.agenda[index] = value; row.textContent = value; }));
     const done = element("button", "editor-button", "Done");
@@ -585,9 +623,11 @@ async function deck(current, version) {
     });
     }
   }
-  main.disposeModelLink = createModelLink(host, {
-    variant:"small", onActivate:enterLiveModel
-  });
+  if (slide?.id !== "opening" || isClosing) {
+    if (!persistentModelLink)
+      persistentModelLink=createModelLink(host,{variant:"small",onActivate:enterLiveModel});
+    else persistentModelLink.attach(host);
+  }
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
   navigationHint.innerHTML = '<span><kbd>Space</kbd> or click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
@@ -638,7 +678,6 @@ async function deck(current, version) {
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
       clearTransition();
-      showPaneToast(current.step);
     }));
     return;
   }
@@ -667,7 +706,6 @@ async function deck(current, version) {
     pane.classList.add("is-ready");
     requestAnimationFrame(() => requestAnimationFrame(() => {
       clearTransition();
-      showPaneToast(current.step);
     }));
   } catch (problem) {
     if (version !== routeVersion) return;
@@ -685,7 +723,6 @@ function render() {
   clearTimeout(paneToastTimer);
   const current = route();
   if (current.page !== "index" && app.firstElementChild) showTransition();
-  app.querySelector(".deck")?.disposeModelLink?.();
   activeExhibit?.destroy();
   activeExhibit = null;
   if (current.page === "model") {
@@ -706,6 +743,8 @@ function render() {
     deck(current, routeVersion);
   } else {
     activeStep = null;
+    persistentModelLink?.dispose();
+    persistentModelLink = null;
     if (document.fullscreenElement === app) document.exitFullscreen().catch(console.warn);
     displayMode = APP_MODE === "presentation" ? "presentation" : "preview";
     launchMode = "full";
@@ -730,7 +769,7 @@ function navigateExhibit(direction) {
     if (direction < 0) activeExhibit.jumpToState?.(next.end);
     else activeExhibit.goToState?.(next.start);
     history.replaceState(null, "", stepHref(next));
-    showPaneToast(next);
+    hidePaneId();
     if (direction > 0) startStepPhases(next);
   } else location.hash = stepHref(next);
 }
@@ -755,7 +794,6 @@ document.addEventListener("fullscreenchange", () => {
   if (document.fullscreenElement === app) {
     pendingFullscreenRestore = false;
     app.querySelector(".restore-fullscreen")?.remove();
-    showPaneToast(activeStep || route().step);
   }
   requestAnimationFrame(updateViewportAspect);
 });
@@ -771,7 +809,7 @@ window.addEventListener("keydown", event => {
     !["Space", "ArrowRight", "ArrowLeft", "Escape", "KeyF", "KeyI"].includes(event.code)) return;
   event.preventDefault();
   if (event.code === "KeyI") {
-    showPaneToast(activeStep || current.step, true);
+    showPaneToast(activeStep || current.step);
     return;
   }
   if (event.code === "Escape") {

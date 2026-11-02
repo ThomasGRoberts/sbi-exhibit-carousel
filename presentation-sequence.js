@@ -8,6 +8,13 @@ export const defaultTitleConfiguration = {
       subtitle:"Space-Based Interceptors & Strategic Stability",
       support:"Fernando Miranda España and Nathan O'Brien\nNovember 2, 2026\nGeorgia Institute of Technology",
       agenda:[], highlight:0, before:"geographic-input", enabled:true },
+    { id:"speakers", type:"speakers", title:"Meet the Speakers",
+      subtitle:"Engineering Space Policy Laboratory",
+      speakers:[
+        {name:"Fernando Miranda España",role:"Policy Lead"},
+        {name:"Nathan O'Brien",role:"Tech Lead"},
+        {name:"Thomas González Roberts",role:"Lab Director"}
+      ],agenda:[],highlight:0,before:"geographic-input",enabled:true },
     { id:"threat-region", type:"agenda", title:"How Do We Characterize a Threat?",
       subtitle:"", agenda:["Geographic Region","Salvo Size"], highlight:0,
       before:"geographic-input", enabled:true },
@@ -50,6 +57,7 @@ export const phaseDurations = {
 
 export function titlePaneId(slide, exhibits) {
   if (slide.id === "opening") return "00.00-opening";
+  if (slide.id === "closing") return "99.00-closing";
   const number = exhibits.find(item => item.id === slide.before)?.number ?? 0;
   return String(number).padStart(2,"0")+".00-"+slide.id;
 }
@@ -66,6 +74,8 @@ export function loadTitleConfiguration() {
       }
       const openingIndex = saved.slides.findIndex(slide => slide.id === "opening");
       if (openingIndex > 0) saved.slides.unshift(saved.slides.splice(openingIndex, 1)[0]);
+      if (!saved.slides.some(slide => slide.id === "speakers"))
+        saved.slides.splice(1,0,structuredClone(defaultTitleConfiguration.slides[1]));
       const savedOpening = saved.slides.find(slide => slide.id === "opening");
       const oldByline = "Fernando Miranda España · Nathan O'Brien · ";
       if (savedOpening?.support?.startsWith(oldByline))
@@ -103,10 +113,15 @@ export function buildPresentationSteps(exhibits, selection, config) {
     slide.id === "opening" && slide.enabled);
   if (opening) steps.push({ id:"title-opening", kind:"title", slide:opening,
     paneId:titlePaneId(opening,exhibits), action:null });
+  const speakers = config.enabled && config.slides.find(slide =>
+    slide.id === "speakers" && slide.enabled);
+  if (opening && speakers) steps.push({id:"title-speakers",kind:"title",slide:speakers,
+    paneId:titlePaneId(speakers,exhibits),action:null});
   for (const exhibit of exhibits) {
     if (!selection.has(exhibit.id)) continue;
     if (config.enabled) for (const slide of config.slides) {
-      if (slide.id !== "opening" && slide.enabled && slide.before === exhibit.id)
+      if (!['opening','speakers'].includes(slide.id) && slide.enabled &&
+          slide.before === exhibit.id)
         steps.push({ id:"title-"+slide.id, kind:"title", slide,
           paneId:titlePaneId(slide,exhibits),
           action:slide.id==="results"&&slide.action==="model"?"model":null });
@@ -118,5 +133,8 @@ export function buildPresentationSteps(exhibits, selection, config) {
       start:panes[0], end:panes.at(-1)
     });
   }
+  if (opening && selection.size)
+    steps.push({id:"title-closing",kind:"title",slide:opening,
+      paneId:"99.00-closing",action:null});
   return steps;
 }

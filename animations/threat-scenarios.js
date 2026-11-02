@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { makeEarth, makeRegion, latLonVector, mainBoundary } from "./globe-geometry.js?50m-boundary=1";
 import { SBI_GOLD } from "./sbi-style.js";
-import { createAnimation as createSalvoAnimation } from "./missile-salvo.js?restored-sites=1";
+import { createAnimation as createSalvoAnimation } from "./missile-salvo.js?site-scale=2";
 
 const ORDER=["north-korea","iran","china","russia"];
 const NAMES={"north-korea":"North Korea",iran:"Iran",china:"China",russia:"Russia"};
@@ -229,7 +229,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   }
   function render(replay=false,instant=false) {
     if(destroyed)return;
-    stage.classList.toggle("show-all-sites",stateIndex===0);
     const selected=stateIndex>=5?"iran":ORDER[stateIndex-1]||null;
     for(const [region,card] of cards) {
       const active=region===selected&&stateIndex<5;

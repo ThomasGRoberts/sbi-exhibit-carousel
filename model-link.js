@@ -1,9 +1,7 @@
 import * as THREE from "three";
 
-// The ESPL SBI project page uses this same gold icosahedron, orbit reveal,
-// timing, and label unfurl to lead visitors into the live model.
-export function createModelLink(container, { variant = "small", onActivate,
-  alwaysOpen = false } = {}) {
+// Keep one WebGL invitation alive as the deck changes slides.
+export function createModelLink(container, { variant = "small", onActivate } = {}) {
   const link = document.createElement("a");
   link.className = "model-link" + (variant === "transition" ? " is-transition" : "");
   link.href = "https://espl.ae.gatech.edu/research/models/sbi/";
@@ -30,8 +28,8 @@ export function createModelLink(container, { variant = "small", onActivate,
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   } catch (error) {
     console.warn("Model-link WebGL unavailable.", error);
-    link.classList.add("is-arrived", "is-open");
-    return () => link.remove();
+    link.classList.add("is-arrived");
+    return {attach:target=>target.append(link),dispose:()=>link.remove()};
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.setSize(variant === "transition" ? 144 : 58,
@@ -105,44 +103,31 @@ export function createModelLink(container, { variant = "small", onActivate,
     motion();
   }
   function retract() {
-    if (alwaysOpen) return;
-    if (!open || link.matches(":hover") || document.activeElement === link) return;
+    if (!open || link.matches(":hover")) return;
     open = false;
     link.classList.remove("is-open");
     motion(true);
   }
   draw(0);
   link.addEventListener("mouseenter", reveal);
-  link.addEventListener("focusin", reveal);
   link.addEventListener("mouseleave", retract);
-  link.addEventListener("focusout", retract);
-  later(() => {
-    link.classList.add("is-arrived");
-    later(() => {
-      reveal();
-      if (!alwaysOpen) later(retract, 2600);
-    }, 700);
-  }, 1100);
-  if (!alwaysOpen) {
-    const attentionCycle = () => later(() => {
-      if (!open && !reduced.matches) {
-        link.classList.add("is-nudging");
-        reveal();
-        later(() => {
-          link.classList.remove("is-nudging");
-          retract();
-        }, 2200);
-      }
-      attentionCycle();
-    }, 18000);
-    attentionCycle();
-  }
-  return () => {
-    destroyed = true;
-    cancelAnimationFrame(frame);
-    timers.forEach(clearTimeout);
-    geometry.dispose(); orbit.material.dispose();
-    globe.geometry.dispose(); globe.material.dispose();
-    renderer.dispose(); link.remove();
+  later(() => link.classList.add("is-arrived"), 1100);
+  return {
+    attach(target) {
+      cancelAnimationFrame(frame);
+      open=false;
+      link.classList.remove("is-open");
+      globe.rotation.y=rest;
+      draw(0);
+      target.append(link);
+    },
+    dispose() {
+      destroyed = true;
+      cancelAnimationFrame(frame);
+      timers.forEach(clearTimeout);
+      geometry.dispose(); orbit.material.dispose();
+      globe.geometry.dispose(); globe.material.dispose();
+      renderer.dispose(); link.remove();
+    }
   };
 }
