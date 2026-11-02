@@ -1,4 +1,4 @@
-import { createUnderHoodDiagram } from "../../animations/under-the-hood.js";
+import { createUnderHoodDiagram } from "../../animations/under-the-hood.js?threat-characterization-1";
 
 const slide=document.getElementById("slide");
 const diagram=createUnderHoodDiagram(slide);

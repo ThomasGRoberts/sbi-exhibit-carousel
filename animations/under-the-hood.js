@@ -24,7 +24,7 @@ export function createUnderHoodDiagram(host) {
     </svg>
     <div class="node input input-policy">Interceptor<br>Capabilities</div>
     <img class="portrait portrait-policy" src="${nathanPhoto}" alt="Nathan O’Brien" decoding="async">
-    <div class="node input input-technical reveal" aria-hidden="true">Interceptor<br>Capabilities</div>
+    <div class="node input input-technical reveal" aria-hidden="true">Threat<br>Characterization</div>
     <img class="portrait portrait-technical reveal" src="${fernandoPhoto}"
       alt="Fernando Miranda España" decoding="async" aria-hidden="true">
     <div class="node process kill-radius">Interceptor<br>Kill Radius</div>

@@ -1,7 +1,7 @@
 import { APP_MODE } from "./config.js";
 import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?persistent-invitation=1";
-import { createUnderHoodDiagram } from "./animations/under-the-hood.js?slide23-1";
+import { createUnderHoodDiagram } from "./animations/under-the-hood.js?threat-characterization-1";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
   TITLE_STORAGE_KEY } from "./presentation-sequence.js?slide23-1";
 import { buildTitleEditor } from "./title-editor.js?slide23-1";
