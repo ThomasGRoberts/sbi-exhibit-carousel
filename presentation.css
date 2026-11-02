@@ -79,7 +79,7 @@
 .title-support[hidden] { display:none; }
 .title-support-line { display:block; }
 .title-support-name { font-weight:650;white-space:nowrap; }
-.title-support-and { color:#808080;font-weight:300; }
+.title-support-and { color:inherit;font-weight:400; }
 .title-stage.is-opening .title-block { width:min(68%,980px);padding-left:2vw; }
 .title-stage.is-opening .title-block h1 { font-size:clamp(36px,5.4vw,82px); }
 .title-stage.is-opening .title-subtitle { font-size:clamp(18px,2.05vw,32px); }

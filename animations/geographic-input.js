@@ -169,12 +169,10 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   function draw() {
     if(destroyed) return;
     const isLarge=stateIndex>=4;
-    const countReady=(stateIndex===2||stateIndex===3||stateIndex===6)&&
-      current.satellite[isLarge?1:0]>=.995;
+    const countReady=isLarge?stateIndex===6&&!transition:
+      (stateIndex===2||stateIndex===3)&&current.satellite[0]>=.995;
     const title=isLarge?"Larger threat region":"Smaller threat region";
-    const count=isLarge?
-      `${largeCount} satellites · ${largeCount-smallCount} more than the smaller region (${smallCount})`:
-      `${smallCount} satellites`;
+    const count=countReady?`${isLarge?largeCount:smallCount} satellites`:"";
     if(comparisonTitle.textContent!==title)comparisonTitle.textContent=title;
     if(comparisonCount.textContent!==count)comparisonCount.textContent=count;
     comparison.classList.toggle("has-count",countReady);
