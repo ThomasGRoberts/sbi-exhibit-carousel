@@ -1,0 +1,1055 @@
+import { geoMercator, geoPath } from "d3-geo";
+
+const PUBLISHED_SHEET_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5vUHnP-VooDg5X9zu3GRbVXdX7HYTn7GXRT-wyOtRKtH_0VPpsPl9YpDgp39U6L1RystRljXQiPnl/pub";
+
+const THREAT_SHEET_GIDS = Object.freeze({
+  "north korea": "0",
+  iran: "1667678723",
+  china: "1512423565",
+  russia: "1222878229"
+});
+
+const ALLOWED_HTML_TAGS = new Set(["P", "EM", "I", "STRONG", "B", "BR", "A"]);
+const URL_PATTERN = /https?:\/\/[^\s<]+[^\s<.,;:!?()[\]{}'\"](?=$|\s|[.,;:!?()[\]{}'\"])/gi;
+
+function normalizeThreatRegion(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatThreatTitle(value) {
+  return normalizeThreatRegion(value).replace(/\b\w/g, character => character.toUpperCase());
+}
+
+export function parseCsvTable(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (quoted) {
+      if (char === '"' && text[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field.replace(/\r$/, ""));
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field.replace(/\r$/, ""));
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+export function parseThreatScenarioCsv(text) {
+  const rows = parseCsvTable(text);
+  const scenarioFields = {};
+  let locationHeaderIndex = -1;
+  let locationColumns = null;
+
+  rows.forEach((row, index) => {
+    const normalized = row.map(cell => String(cell || "").trim().toLowerCase());
+
+    if (
+      locationHeaderIndex < 0 &&
+      normalized.includes("latitude") &&
+      normalized.includes("longitude") &&
+      normalized.includes("title") &&
+      normalized.includes("description_html")
+    ) {
+      locationHeaderIndex = index;
+      locationColumns = {
+        latitude: normalized.indexOf("latitude"),
+        longitude: normalized.indexOf("longitude"),
+        title: normalized.indexOf("title"),
+        descriptionHtml: normalized.indexOf("description_html")
+      };
+      return;
+    }
+
+    if (locationHeaderIndex < 0) {
+      const key = normalized[0];
+      if (["threat_region", "salvo_size", "narrative_html"].includes(key)) {
+        scenarioFields[key] = String(row[1] || "").trim();
+      }
+    }
+  });
+
+  if (locationHeaderIndex < 0 || !locationColumns) {
+    throw new Error("The scenario sheet is missing its locations table.");
+  }
+
+  if (!scenarioFields.threat_region) {
+    throw new Error("The scenario sheet is missing its threat region.");
+  }
+
+  const locations = rows.slice(locationHeaderIndex + 1).flatMap(row => {
+    const latitudeText = String(row[locationColumns.latitude] || "").trim();
+    const longitudeText = String(row[locationColumns.longitude] || "").trim();
+    const titleText = String(row[locationColumns.title] || "").trim();
+    const descriptionHtml = String(row[locationColumns.descriptionHtml] || "").trim();
+    if (!latitudeText && !longitudeText && !titleText && !descriptionHtml) return [];
+
+    return [{
+      latitude: latitudeText ? Number(latitudeText) : NaN,
+      longitude: longitudeText ? Number(longitudeText) : NaN,
+      title: titleText || "Launch location",
+      descriptionHtml
+    }];
+  });
+
+  return {
+    threatRegion: scenarioFields.threat_region,
+    salvoSize: scenarioFields.salvo_size,
+    narrativeHtml: scenarioFields.narrative_html || "",
+    locations
+  };
+}
+
+export async function loadThreatScenario(threatRegion, fetchImpl = fetch) {
+  const normalized = normalizeThreatRegion(threatRegion);
+  const gid = THREAT_SHEET_GIDS[normalized];
+
+  if (gid === undefined) {
+    throw new Error("No scenario-detail sheet is configured for this threat region.");
+  }
+
+  const url = `${PUBLISHED_SHEET_BASE}?output=csv&gid=${encodeURIComponent(gid)}&refresh=${Date.now()}`;
+  const response = await fetchImpl(url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Scenario details could not be loaded (${response.status}).`);
+  }
+
+  const scenario = parseThreatScenarioCsv(await response.text());
+
+  if (normalizeThreatRegion(scenario.threatRegion) !== normalized) {
+    throw new Error("The published sheet returned a different threat region than requested.");
+  }
+
+  return scenario;
+}
+
+function appendTextWithCitationBreaks(target, value) {
+  const segments = value.split(/;\s*/);
+  segments.forEach((segment, index) => {
+    target.append(document.createTextNode(segment));
+    if (index === segments.length - 1) return;
+    const breakElement = document.createElement("br");
+    breakElement.className = "scenarioFootnoteCitationBreak";
+    const spacer = document.createElement("span");
+    spacer.className = "scenarioFootnoteCitationSpacer";
+    spacer.setAttribute("aria-hidden", "true");
+    target.append(document.createTextNode("."), breakElement, spacer);
+  });
+}
+
+function appendLinkifiedText(target, value, breakOnSemicolons = false) {
+  let cursor = 0;
+  const appendText = text => {
+    if (breakOnSemicolons) appendTextWithCitationBreaks(target, text);
+    else target.append(document.createTextNode(text));
+  };
+
+  for (const match of value.matchAll(URL_PATTERN)) {
+    const start = match.index ?? 0;
+    if (start > cursor) appendText(value.slice(cursor, start));
+
+    const link = document.createElement("a");
+    link.href = match[0];
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = match[0];
+    target.append(link);
+    cursor = start + match[0].length;
+  }
+
+  if (cursor < value.length) appendText(value.slice(cursor));
+}
+
+function getSafeHttpUrl(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate, window.location.href);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function appendSanitizedNode(target, source, footnotes, counter, linkify = false) {
+  if (source.nodeType === Node.TEXT_NODE) {
+    if (linkify) appendLinkifiedText(target, source.textContent || "", true);
+    else target.append(document.createTextNode(source.textContent || ""));
+    return;
+  }
+
+  if (source.nodeType !== Node.ELEMENT_NODE) return;
+
+  const tokenIndex = source.getAttribute("data-footnote-token");
+  if (tokenIndex !== null && footnotes[Number(tokenIndex)] !== undefined) {
+    counter.value += 1;
+    target.append(createFootnote(footnotes[Number(tokenIndex)], counter.value));
+    return;
+  }
+
+  if (!ALLOWED_HTML_TAGS.has(source.tagName)) {
+    [...source.childNodes].forEach(child => appendSanitizedNode(target, child, footnotes, counter, linkify));
+    return;
+  }
+
+  const clean = document.createElement(source.tagName.toLowerCase());
+  if (source.tagName === "A") {
+    const safeHref = getSafeHttpUrl(source.getAttribute("href"));
+    if (!safeHref) {
+      [...source.childNodes].forEach(child => appendSanitizedNode(target, child, footnotes, counter, linkify));
+      return;
+    }
+    clean.href = safeHref;
+    clean.target = "_blank";
+    clean.rel = "noopener noreferrer";
+  }
+  [...source.childNodes].forEach(child => {
+    appendSanitizedNode(clean, child, footnotes, counter, source.tagName === "A" ? false : linkify);
+  });
+  target.append(clean);
+}
+
+function createFootnote(citationHtml, number) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "scenarioFootnote";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "scenarioFootnoteRef";
+  button.setAttribute("aria-label", `Show footnote ${number}`);
+  button.setAttribute("aria-expanded", "false");
+  const superscript = document.createElement("sup");
+  superscript.textContent = String(number);
+  button.append(superscript);
+
+  const expanded = document.createElement("span");
+  expanded.className = "scenarioFootnoteExpanded";
+  expanded.setAttribute("aria-hidden", "true");
+  const citation = document.createElement("span");
+  citation.className = "scenarioFootnoteBody";
+
+  const parsed = new DOMParser().parseFromString(`<body>${citationHtml}</body>`, "text/html");
+  [...parsed.body.childNodes].forEach(child => {
+    appendSanitizedNode(citation, child, [], { value: 0 }, true);
+  });
+  expanded.append(citation);
+
+  const collapseButton = document.createElement("button");
+  collapseButton.type = "button";
+  collapseButton.className = "scenarioFootnoteCollapse";
+  collapseButton.setAttribute("aria-label", `Collapse footnote ${number}`);
+  collapseButton.textContent = "×";
+  expanded.append(collapseButton);
+
+  const setOpen = open => {
+    wrapper.classList.toggle("is-open", open);
+    button.setAttribute("aria-expanded", String(open));
+    button.setAttribute("aria-label", `${open ? "Collapse" : "Show"} footnote ${number}`);
+    expanded.setAttribute("aria-hidden", String(!open));
+    wrapper.dispatchEvent(new CustomEvent("scenario-footnote-toggle", {
+      bubbles: true,
+      detail: { footnote: wrapper, opened: open }
+    }));
+  };
+
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    setOpen(!wrapper.classList.contains("is-open"));
+  });
+
+  button.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    setOpen(false);
+  });
+
+  collapseButton.addEventListener("click", event => {
+    event.stopPropagation();
+    setOpen(false);
+    button.focus({ preventScroll: true });
+  });
+
+  wrapper.append(button, expanded);
+  return wrapper;
+}
+
+function closeOpenFootnotes(except = null) {
+  document.querySelectorAll(".scenarioFootnote.is-open").forEach(footnote => {
+    if (footnote === except) return;
+    footnote.classList.remove("is-open");
+    footnote.querySelector(".scenarioFootnoteRef")?.setAttribute("aria-expanded", "false");
+    footnote.querySelector(".scenarioFootnoteExpanded")?.setAttribute("aria-hidden", "true");
+  });
+}
+
+export function renderAuthoredHtml(target, html, counter = { value: 0 }) {
+  target.replaceChildren();
+  if (!html) return;
+
+  const footnotes = [];
+  const tokenized = String(html).replace(/\[fn\]([\s\S]*?)\[\/fn\]/gi, (_, citation) => {
+    const index = footnotes.push(citation) - 1;
+    return `<span data-footnote-token="${index}"></span>`;
+  });
+  const parsed = new DOMParser().parseFromString(`<body>${tokenized}</body>`, "text/html");
+
+  [...parsed.body.childNodes].forEach(child => {
+    appendSanitizedNode(target, child, footnotes, counter);
+  });
+}
+
+function featureMatchesThreatRegion(featureName, threatRegion) {
+  const feature = normalizeThreatRegion(featureName);
+  const selected = normalizeThreatRegion(threatRegion);
+  if (feature === selected) return true;
+  if (selected === "north korea") return feature.includes("korea") && (feature.includes("north") || feature.includes("dem"));
+  return feature.includes(selected);
+}
+
+function distributeCoincidentMarkers(points) {
+  const groups = new Map();
+  points.forEach(point => {
+    const key = `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(point);
+  });
+
+  groups.forEach(group => {
+    if (group.length < 2) return;
+    group.forEach((point, index) => {
+      const angle = (Math.PI * 2 * index) / group.length - Math.PI / 2;
+      point.x += Math.cos(angle) * 8;
+      point.y += Math.sin(angle) * 8;
+    });
+  });
+}
+
+export function groupScenarioLocations(locations) {
+  const groups = new Map();
+
+  locations.forEach(location => {
+    const key = location.title;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        title: location.title,
+        descriptionHtml: location.descriptionHtml,
+        coordinates: []
+      });
+    }
+    const coordinateIsValid = (
+      Number.isFinite(location.latitude) &&
+      Number.isFinite(location.longitude) &&
+      location.latitude >= -90 &&
+      location.latitude <= 90 &&
+      location.longitude >= -180 &&
+      location.longitude <= 180
+    );
+    if (coordinateIsValid) {
+      groups.get(key).coordinates.push({
+        latitude: location.latitude,
+        longitude: location.longitude
+      });
+    }
+  });
+
+  return [...groups.values()].filter(site => site.coordinates.length > 0);
+}
+
+function countAuthoredFootnotes(html) {
+  return String(html || "").match(/\[fn\][\s\S]*?\[\/fn\]/gi)?.length || 0;
+}
+
+export function assignScenarioFootnoteStarts(narrativeHtml, sites) {
+  let nextNumber = countAuthoredFootnotes(narrativeHtml) + 1;
+  sites.forEach(site => {
+    site.footnoteStart = nextNumber - 1;
+    nextNumber += countAuthoredFootnotes(site.descriptionHtml);
+  });
+  return sites;
+}
+
+function collectCoordinatesFromGeometry(geometry, longitudes, latitudes = null) {
+  if (!geometry) return;
+  if (geometry.type === "GeometryCollection") {
+    geometry.geometries?.forEach(item => collectCoordinatesFromGeometry(item, longitudes, latitudes));
+    return;
+  }
+
+  const visit = coordinates => {
+    if (!Array.isArray(coordinates)) return;
+    if (typeof coordinates[0] === "number" && typeof coordinates[1] === "number") {
+      longitudes.push(coordinates[0]);
+      latitudes?.push(coordinates[1]);
+      return;
+    }
+    coordinates.forEach(visit);
+  };
+  visit(geometry.coordinates);
+}
+
+function getCircularLongitudeStats(features) {
+  const longitudes = [];
+  features.forEach(feature => collectCoordinatesFromGeometry(feature.geometry, longitudes));
+  if (longitudes.length === 0) return { center: 0, span: 0 };
+
+  const values = [...new Set(longitudes.map(longitude => ((longitude % 360) + 360) % 360))]
+    .sort((a, b) => a - b);
+  if (values.length === 1) {
+    return { center: values[0] > 180 ? values[0] - 360 : values[0], span: 0 };
+  }
+
+  let largestGap = -1;
+  let arcStart = values[0];
+  values.forEach((value, index) => {
+    const next = index === values.length - 1 ? values[0] + 360 : values[index + 1];
+    const gap = next - value;
+    if (gap > largestGap) {
+      largestGap = gap;
+      arcStart = next % 360;
+    }
+  });
+
+  const span = 360 - largestGap;
+  const center = (arcStart + span / 2) % 360;
+  return { center: center > 180 ? center - 360 : center, span };
+}
+
+function getBoundaryDetailSelection(worldFeatures, threatRegion) {
+  const focusFeatures = worldFeatures.filter(feature =>
+    featureMatchesThreatRegion(feature.properties?.name || "", threatRegion)
+  );
+  if (focusFeatures.length === 0) return { detail: "standard", effectiveSpan: Infinity };
+
+  const longitudes = [];
+  const latitudes = [];
+  focusFeatures.forEach(feature => {
+    collectCoordinatesFromGeometry(feature.geometry, longitudes, latitudes);
+  });
+  if (latitudes.length === 0) return { detail: "standard", effectiveSpan: Infinity };
+  const { span: longitudeSpan } = getCircularLongitudeStats(focusFeatures);
+  const minimumLatitude = Math.min(...latitudes);
+  const maximumLatitude = Math.max(...latitudes);
+  const latitudeSpan = maximumLatitude - minimumLatitude;
+  const middleLatitude = (minimumLatitude + maximumLatitude) / 2;
+  const latitudeAdjustedWidth = longitudeSpan * Math.cos(middleLatitude * Math.PI / 180);
+  const effectiveSpan = Math.max(latitudeAdjustedWidth, latitudeSpan);
+
+  return {
+    detail: effectiveSpan <= 25 ? "detailed" : "standard",
+    effectiveSpan
+  };
+}
+
+function renderDetailMap(svg, scenario, sites, worldFeatures, selectedSiteIndex, onSelect) {
+  const width = 291;
+  const height = 176;
+  const focusFeatures = worldFeatures.filter(feature =>
+    featureMatchesThreatRegion(feature.properties?.name || "", scenario.threatRegion)
+  );
+  const locationFeatures = sites.flatMap(site => site.coordinates).map(coordinate => ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [coordinate.longitude, coordinate.latitude] }
+  }));
+  const fitFeatures = focusFeatures.length > 0 ? focusFeatures : locationFeatures;
+  const centralLongitude = getCircularLongitudeStats(fitFeatures).center;
+  const projection = geoMercator().rotate([-centralLongitude, 0]);
+
+  if (fitFeatures.length > 0) {
+    projection.fitExtent(
+      [[16, 14], [width - 16, height - 14]],
+      { type: "FeatureCollection", features: fitFeatures }
+    );
+  }
+
+  const path = geoPath(projection);
+  // Keep the existing map extent; reserve a separate strip for readable coordinates.
+  svg.setAttribute("viewBox", `0 0 ${width} ${height + 22}`);
+  svg.replaceChildren();
+
+  const boundaryLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  boundaryLayer.setAttribute("class", "scenarioMapBoundaries");
+
+  const orderedFeatures = [
+    ...worldFeatures.filter(feature =>
+      !featureMatchesThreatRegion(feature.properties?.name || "", scenario.threatRegion)
+    ),
+    ...focusFeatures
+  ];
+
+  orderedFeatures.forEach(feature => {
+    const isFocus = featureMatchesThreatRegion(
+      feature.properties?.name || "",
+      scenario.threatRegion
+    );
+    if (!isFocus) {
+      const [[minimumX, minimumY], [maximumX, maximumY]] = path.bounds(feature);
+      const contextMargin = 6;
+      const isOutsideMap = (
+        maximumX < -contextMargin ||
+        minimumX > width + contextMargin ||
+        maximumY < -contextMargin ||
+        minimumY > height + contextMargin
+      );
+      if (isOutsideMap) return;
+    }
+
+    const d = path(feature);
+    if (!d) return;
+    const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shape.setAttribute("d", d);
+    if (isFocus) {
+      shape.classList.add("scenarioMapFocusCountry");
+    }
+    boundaryLayer.append(shape);
+  });
+
+  svg.append(boundaryLayer);
+
+  const projected = sites.flatMap((site, siteIndex) =>
+    site.coordinates.map((coordinate, coordinateIndex) => {
+      const point = projection([coordinate.longitude, coordinate.latitude]);
+      return { siteIndex, coordinateIndex, coordinate, site, x: point?.[0] ?? 0, y: point?.[1] ?? 0 };
+    })
+  );
+  const coordinateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  coordinateLayer.setAttribute("class", "scenarioMapCoordinates");
+  coordinateLayer.setAttribute("pointer-events", "none");
+  projected.forEach(point => {
+    // A local locator, not a graticule: anchor to the true projected point before
+    // coincident markers are spread out for interaction.
+    const locator = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    locator.setAttribute("class", "scenarioMapLocator");
+    locator.dataset.siteIndex = String(point.siteIndex);
+    locator.dataset.coordinateIndex = String(point.coordinateIndex);
+    locator.setAttribute("d", `M${point.x - 19},${point.y}h13m12,0h13M${point.x},${point.y - 19}v13m0,12v13`);
+    coordinateLayer.append(locator);
+  });
+  svg.append(coordinateLayer);
+  distributeCoincidentMarkers(projected);
+
+  projected.forEach(point => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    marker.setAttribute("class", `scenarioMapMarker${point.siteIndex === selectedSiteIndex ? " is-selected" : ""}`);
+    marker.dataset.siteIndex = String(point.siteIndex);
+    marker.dataset.coordinateIndex = String(point.coordinateIndex);
+    marker.setAttribute("transform", `translate(${point.x} ${point.y})`);
+    marker.setAttribute("role", "button");
+    marker.setAttribute("tabindex", "0");
+    marker.setAttribute("aria-label", point.site.title);
+
+    const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    hitArea.setAttribute("class", "scenarioMapMarkerHitArea");
+    hitArea.setAttribute("r", "9");
+    marker.append(hitArea);
+
+    pulse.setAttribute("class", "scenarioMapMarkerPulse");
+    pulse.setAttribute("r", "10.2");
+    marker.append(pulse);
+
+    core.setAttribute("class", "scenarioMapMarkerCore");
+    core.setAttribute("r", point.siteIndex === selectedSiteIndex ? "3.8" : "2.1");
+    marker.append(core);
+
+    marker.addEventListener("click", () => onSelect(point.siteIndex, point.coordinateIndex));
+    marker.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onSelect(point.siteIndex, point.coordinateIndex);
+    });
+    svg.append(marker);
+  });
+}
+
+export function createSecretLegendActivation({ yellowDot, grayDot, onActivate, timeoutMs = 1800 }) {
+  let armedAt = 0;
+
+  const reset = () => { armedAt = 0; };
+  const onYellow = event => {
+    event.stopPropagation();
+    armedAt = performance.now();
+  };
+  const onGray = event => {
+    event.stopPropagation();
+    const valid = armedAt > 0 && performance.now() - armedAt <= timeoutMs;
+    reset();
+    if (valid) onActivate();
+  };
+  const onUnrelatedInteraction = event => {
+    if (event.target === yellowDot || event.target === grayDot) return;
+    reset();
+  };
+
+  yellowDot?.addEventListener("click", onYellow);
+  grayDot?.addEventListener("click", onGray);
+  document.addEventListener("pointerdown", onUnrelatedInteraction, true);
+
+  return reset;
+}
+
+export function createThreatScenarioDetailController({
+  panel,
+  flipper,
+  front,
+  back,
+  backButton,
+  scenarioNavigator,
+  mapSvg,
+  locationDetail,
+  locationIndicators,
+  locationPrevious,
+  locationNext,
+  narrative,
+  narrativeHeading,
+  launchHeading,
+  loading,
+  empty,
+  error,
+  content,
+  getThreatRegion,
+  setThreatRegion,
+  getWorldFeatures,
+  onLayoutChange
+}) {
+  const carouselIntervalMs = 6500;
+  let scenario = null;
+  let sites = [];
+  let selectedSiteIndex = 0;
+  let selectedCoordinateIndex = 0;
+  let requestId = 0;
+  let carouselTimer = null;
+  let carouselPausedForSite = false;
+  let captionFootnoteStart = 0;
+  let resizeFrame = 0;
+  let measuredCaptionWidth = 0;
+
+  const measureNaturalFaceHeight = face => {
+    const previousHeight = face.style.height;
+    const previousBottom = face.style.bottom;
+    // A definite small height lets scrollHeight measure all content on both
+    // absolute-positioned faces, including collapsed and expanded controls.
+    face.style.height = "1px";
+    face.style.bottom = "auto";
+    const naturalHeight = Math.ceil(face.scrollHeight);
+    face.style.height = previousHeight;
+    face.style.bottom = previousBottom;
+    return naturalHeight;
+  };
+
+  const syncHeight = () => {
+    const visibleFace = panel.classList.contains("is-detail-open") ? back : front;
+    const maxHeight = Math.max(160, window.innerHeight -
+      (document.body.classList.contains("mapMode2D") ? 140 : 114));
+    panel.style.setProperty("--panel-height", `${Math.min(measureNaturalFaceHeight(visibleFace), maxHeight)}px`);
+  };
+
+  const stopCarousel = () => {
+    if (carouselTimer !== null) window.clearTimeout(carouselTimer);
+    carouselTimer = null;
+  };
+
+  const scheduleCarousel = () => {
+    stopCarousel();
+    if (carouselPausedForSite || !panel.classList.contains("is-detail-open") || sites.length < 2) return;
+    carouselTimer = window.setTimeout(() => {
+      if (back.querySelector(".scenarioFootnote.is-open")) {
+        scheduleCarousel();
+        return;
+      }
+      selectSite(selectedSiteIndex + 1);
+    }, carouselIntervalMs);
+  };
+
+  const renderScenarioNavigation = threatRegion => {
+    const normalized = normalizeThreatRegion(threatRegion).replace(/\s+/g, "-");
+    scenarioNavigator.querySelectorAll("[data-threat-region]").forEach(button => {
+      const current = button.dataset.threatRegion === normalized;
+      button.classList.toggle("is-current", current);
+      if (current) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    });
+  };
+
+  const renderIndicators = () => {
+    locationIndicators.replaceChildren();
+    sites.forEach((site, index) => {
+      const indicator = document.createElement("button");
+      indicator.type = "button";
+      indicator.className = `scenarioLocationIndicator${index === selectedSiteIndex ? " is-current" : ""}`;
+      indicator.setAttribute("role", "tab");
+      indicator.setAttribute("aria-selected", String(index === selectedSiteIndex));
+      indicator.setAttribute("aria-label", `Show site ${index + 1} of ${sites.length}: ${site.title}`);
+      indicator.addEventListener("click", () => selectSite(index));
+      locationIndicators.append(indicator);
+    });
+  };
+
+  const renderSiteCaption = (target, site) => {
+    target.replaceChildren();
+    if (site) {
+      const captionContent = document.createElement("div");
+      captionContent.className = "scenarioLocationCaptionContent";
+      const title = document.createElement("h3");
+      title.textContent = site.title;
+      captionContent.append(title);
+
+      if (site.descriptionHtml) {
+        const description = document.createElement("div");
+        description.className = "scenarioLocationDescription";
+        renderAuthoredHtml(description, site.descriptionHtml, { value: site.footnoteStart ?? captionFootnoteStart });
+        captionContent.append(description);
+      }
+      target.append(captionContent);
+    }
+  };
+
+  const reserveCaptionHeight = () => {
+    const carousel = locationDetail.closest(".scenarioLocationCarousel");
+    if (!carousel || sites.length === 0) {
+      locationDetail.style.removeProperty("min-height");
+      return;
+    }
+
+    const captionWidth = locationDetail.getBoundingClientRect().width;
+    if (captionWidth <= 0) return;
+    measuredCaptionWidth = captionWidth;
+
+    const measure = locationDetail.cloneNode(false);
+    measure.removeAttribute("id");
+    measure.removeAttribute("aria-live");
+    measure.classList.add("scenarioLocationMeasure");
+    measure.style.width = `${captionWidth}px`;
+    carousel.append(measure);
+
+    let maximumHeight = 0;
+    sites.forEach(site => {
+      renderSiteCaption(measure, site);
+      maximumHeight = Math.max(maximumHeight, Math.ceil(measure.getBoundingClientRect().height));
+    });
+    measure.remove();
+    locationDetail.style.minHeight = `${maximumHeight}px`;
+  };
+
+  const updateIndicators = () => {
+    locationIndicators.querySelectorAll(".scenarioLocationIndicator").forEach((indicator, index) => {
+      const current = index === selectedSiteIndex;
+      indicator.classList.toggle("is-current", current);
+      indicator.setAttribute("aria-selected", String(current));
+    });
+  };
+
+  const updateMapSelection = () => {
+    const markers = [...mapSvg.querySelectorAll(".scenarioMapMarker")];
+    markers.forEach(marker => marker.classList.remove("is-selected"));
+    void mapSvg.getBoundingClientRect();
+    markers.forEach(marker => {
+      const selected = Number(marker.dataset.siteIndex) === selectedSiteIndex;
+      marker.classList.toggle("is-selected", selected);
+      marker.querySelector(".scenarioMapMarkerCore")?.setAttribute("r", selected ? "3.8" : "2.1");
+    });
+    mapSvg.querySelectorAll(".scenarioMapLocator").forEach(locator => {
+      locator.classList.remove("is-selected");
+      void locator.getBoundingClientRect();
+      locator.classList.toggle("is-selected",
+        Number(locator.dataset.siteIndex) === selectedSiteIndex &&
+        Number(locator.dataset.coordinateIndex) === selectedCoordinateIndex);
+    });
+    const coordinate = sites[selectedSiteIndex]?.coordinates[selectedCoordinateIndex];
+    const label = mapSvg.parentElement.querySelector(".scenarioMapCoordinateLabel");
+    if (label) label.textContent = coordinate
+      ? `${Math.abs(coordinate.latitude).toFixed(3)}°${coordinate.latitude < 0 ? "S" : "N"}, ${Math.abs(coordinate.longitude).toFixed(3)}°${coordinate.longitude < 0 ? "W" : "E"}`
+      : "";
+  };
+
+  const renderSelectedSite = () => {
+    locationDetail.closest(".scenarioLocationCarousel")?.classList.remove("has-expanded-footnote");
+    renderSiteCaption(locationDetail, sites[selectedSiteIndex]);
+    updateIndicators();
+    updateMapSelection();
+  };
+
+  const renderContent = () => {
+    if (!scenario) return;
+    const counter = { value: 0 };
+    renderAuthoredHtml(narrative, scenario.narrativeHtml, counter);
+    captionFootnoteStart = counter.value;
+
+    const standardWorldFeatures = getWorldFeatures("standard");
+    const boundarySelection = getBoundaryDetailSelection(
+      standardWorldFeatures,
+      scenario.threatRegion
+    );
+    const selectedWorldFeatures = getWorldFeatures(boundarySelection.detail);
+    mapSvg.dataset.boundaryDetail = boundarySelection.detail;
+    mapSvg.dataset.effectiveGeographicSpan = boundarySelection.effectiveSpan.toFixed(2);
+    renderDetailMap(mapSvg, scenario, sites, selectedWorldFeatures, selectedSiteIndex, selectSite);
+    renderIndicators();
+    reserveCaptionHeight();
+    renderSelectedSite();
+    const hasMultipleSites = sites.length > 1;
+    locationPrevious.disabled = !hasMultipleSites;
+    locationNext.disabled = !hasMultipleSites;
+  };
+
+  function selectSite(index, coordinateIndex = 0) {
+    if (sites.length === 0) return;
+    const preservedScrollTop = back.scrollTop;
+    selectedSiteIndex = (index + sites.length) % sites.length;
+    selectedCoordinateIndex = coordinateIndex;
+    renderSelectedSite();
+    back.scrollTop = preservedScrollTop;
+    scheduleCarousel();
+  }
+
+  const showScenario = nextScenario => {
+    stopCarousel();
+    scenario = nextScenario;
+    sites = groupScenarioLocations(scenario.locations);
+    assignScenarioFootnoteStarts(scenario.narrativeHtml, sites);
+    selectedSiteIndex = 0;
+    selectedCoordinateIndex = 0;
+    renderScenarioNavigation(scenario.threatRegion);
+    narrativeHeading.textContent = scenario.salvoSize
+      ? `Why ${scenario.salvoSize} ${Number(scenario.salvoSize) === 1 ? "missile" : "missiles"}?`
+      : "Why this salvo size?";
+    launchHeading.textContent = `Which launch sites in ${formatThreatTitle(scenario.threatRegion)}?`;
+    loading.hidden = true;
+    empty.hidden = true;
+    error.hidden = true;
+    const hasContent = Boolean(
+      scenario.salvoSize ||
+      scenario.narrativeHtml ||
+      scenario.locations.length > 0
+    );
+    content.hidden = !hasContent;
+
+    if (!hasContent) {
+      empty.hidden = false;
+      empty.textContent = `Scenario details have not yet been added for ${scenario.threatRegion}.`;
+      syncHeight();
+      return;
+    }
+
+    renderContent();
+    syncHeight();
+    scheduleCarousel();
+  };
+
+  const showError = message => {
+    scenario = null;
+    sites = [];
+    stopCarousel();
+    mapSvg.replaceChildren();
+    locationDetail.replaceChildren();
+    narrative.replaceChildren();
+    loading.hidden = true;
+    empty.hidden = true;
+    error.hidden = false;
+    content.hidden = true;
+    error.textContent = message;
+    syncHeight();
+  };
+
+  const load = async threatRegion => {
+    stopCarousel();
+    const currentRequest = ++requestId;
+    renderScenarioNavigation(threatRegion);
+    launchHeading.textContent = `Which launch sites in ${formatThreatTitle(threatRegion)}?`;
+    loading.hidden = false;
+    empty.hidden = true;
+    error.hidden = true;
+    content.hidden = true;
+    syncHeight();
+
+    try {
+      const nextScenario = await loadThreatScenario(threatRegion);
+      if (currentRequest !== requestId) return;
+      showScenario(nextScenario);
+    } catch (loadError) {
+      console.error(loadError);
+      if (currentRequest !== requestId) return;
+      showError("Scenario details are temporarily unavailable. The main visualization remains fully functional.");
+    }
+  };
+
+  const open = () => {
+    carouselPausedForSite = false;
+    panel.classList.add("is-detail-open");
+    onLayoutChange?.();
+    window.setTimeout(() => {
+      if (scenario) reserveCaptionHeight();
+      syncHeight();
+    }, 700);
+    back.scrollTop = 0;
+    flipper.setAttribute("aria-hidden", "false");
+    front.setAttribute("aria-hidden", "true");
+    front.inert = true;
+    back.setAttribute("aria-hidden", "false");
+    back.inert = false;
+    const threatRegion = getThreatRegion();
+    return load(threatRegion);
+  };
+
+  const close = () => {
+    carouselPausedForSite = false;
+    requestId += 1;
+    stopCarousel();
+    closeOpenFootnotes();
+    panel.classList.remove("is-detail-open");
+    onLayoutChange?.();
+    window.setTimeout(syncHeight, 700);
+    front.setAttribute("aria-hidden", "false");
+    front.inert = false;
+    back.setAttribute("aria-hidden", "true");
+    back.inert = true;
+    syncHeight();
+  };
+
+  backButton.addEventListener("click", close);
+  back.addEventListener("click", event => {
+    if (carouselPausedForSite && event.isTrusted && panel.classList.contains("is-detail-open")) {
+      carouselPausedForSite = false;
+      scheduleCarousel();
+    }
+  });
+  locationPrevious.addEventListener("click", () => selectSite(selectedSiteIndex - 1));
+  locationNext.addEventListener("click", () => selectSite(selectedSiteIndex + 1));
+  scenarioNavigator.addEventListener("click", async event => {
+    const button = event.target.closest("[data-threat-region]");
+    if (!button || button.classList.contains("is-current")) return;
+    const nextRegion = button.dataset.threatRegion;
+    const buttons = [...scenarioNavigator.querySelectorAll("[data-threat-region]")];
+    buttons.forEach(item => { item.disabled = true; });
+    scenarioNavigator.setAttribute("aria-busy", "true");
+    try {
+      await Promise.all([setThreatRegion(nextRegion), load(nextRegion)]);
+    } finally {
+      buttons.forEach(item => { item.disabled = false; });
+      scenarioNavigator.removeAttribute("aria-busy");
+    }
+  });
+  back.addEventListener("scenario-footnote-toggle", event => {
+    const carousel = event.target.closest(".scenarioLocationCarousel");
+    if (carousel) {
+      carousel.classList.toggle(
+        "has-expanded-footnote",
+        Boolean(carousel.querySelector(".scenarioFootnote.is-open"))
+      );
+    }
+
+  });
+  window.addEventListener("resize", () => {
+    syncHeight();
+    if (!scenario || !panel.classList.contains("is-detail-open")) return;
+    window.cancelAnimationFrame(resizeFrame);
+    resizeFrame = window.requestAnimationFrame(() => {
+      reserveCaptionHeight();
+      syncHeight();
+    });
+  });
+  if ("ResizeObserver" in window) {
+    const captionResizeObserver = new ResizeObserver(() => {
+      if (!scenario || !panel.classList.contains("is-detail-open")) return;
+      const currentWidth = locationDetail.getBoundingClientRect().width;
+      if (Math.abs(currentWidth - measuredCaptionWidth) < .5) return;
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(() => {
+        reserveCaptionHeight();
+        syncHeight();
+      });
+    });
+    captionResizeObserver.observe(locationDetail);
+  }
+  requestAnimationFrame(syncHeight);
+
+  return {
+    open,
+    close,
+    syncHeight,
+    async openAtLaunchSite(target) {
+      await open();
+      if (!sites.length) return;
+      carouselPausedForSite = true;
+      stopCarousel();
+      const normalizeSite = value => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const targetName = normalizeSite(target?.name);
+      let index = sites.findIndex(site => {
+        const title = normalizeSite(site.title);
+        return title === targetName || (title.length > 4 && targetName.includes(title)) ||
+          (targetName.length > 4 && title.includes(targetName));
+      });
+      let coordinateIndex = 0;
+      if (index < 0 && Number.isFinite(target?.lat) && Number.isFinite(target?.lon)) {
+        let bestDistance = Infinity;
+        sites.forEach((site, siteIndex) => site.coordinates.forEach((coordinate, pointIndex) => {
+          const distance = (coordinate.latitude - target.lat) ** 2 +
+            ((coordinate.longitude - target.lon) * Math.cos(target.lat * Math.PI / 180)) ** 2;
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            index = siteIndex;
+            coordinateIndex = pointIndex;
+          }
+        }));
+      }
+      if (index >= 0) selectSite(index, coordinateIndex);
+      await new Promise(resolve => window.setTimeout(resolve, 650));
+      const section = launchHeading.closest(".scenarioMapSection");
+      if (section) {
+        const top = back.scrollTop + section.getBoundingClientRect().top -
+          back.getBoundingClientRect().top - 10;
+        back.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }
+    },
+    setScenarioOrder(threatRegions) {
+      const buttons = new Map(
+        [...scenarioNavigator.querySelectorAll("[data-threat-region]")]
+          .map(button => [button.dataset.threatRegion, button])
+      );
+      threatRegions.forEach(threatRegion => {
+        const button = buttons.get(threatRegion);
+        if (button) scenarioNavigator.append(button);
+      });
+    },
+    refreshMap() {
+      if (scenario && panel.classList.contains("is-detail-open")) {
+        const preservedScrollTop = back.scrollTop;
+        renderContent();
+        back.scrollTop = preservedScrollTop;
+      }
+    }
+  };
+}

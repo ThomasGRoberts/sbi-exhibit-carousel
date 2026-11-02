@@ -1,10 +1,9 @@
 import { APP_MODE } from "./config.js";
-import { presenters, exhibits, stateId } from "./manifest.js";
+import { presenters, exhibits, stateId } from "./manifest.js?integrated-model-1";
 import { createModelLink } from "./model-link.js?invitation=3";
 import { buildPresentationSteps, loadTitleConfiguration, phaseDurations,
-  TITLE_STORAGE_KEY } from "./presentation-sequence.js";
-import { buildTitleEditor } from "./title-editor.js";
-import { createDormantCarousel } from "./animations/dormant-carousel.js";
+  TITLE_STORAGE_KEY } from "./presentation-sequence.js?integrated-model-1";
+import { buildTitleEditor } from "./title-editor.js?integrated-model-1";
 
 const app = document.getElementById("app");
 let activeExhibit = null;
@@ -19,7 +18,7 @@ let lastFullscreenExit = -Infinity;
 const moduleSession = Date.now().toString(36);
 const selectionKey = "sbi-exhibit-carousel-selection-v2";
 const modelSessionKey = "sbi-carousel-live-model-session-v1";
-const liveModelUrl = "https://thomasgroberts.github.io/sbi-constellation-viz/";
+const liveModelUrl = new URL("./integrated-sbi/", import.meta.url).href;
 const commentLogUrl = "https://docs.google.com/spreadsheets/d/1X7T9abmO9xWdtuP31w-Ovz2D5K5y-PY4jn4uxDlkjQ4/edit?gid=0#gid=0";
 let modelContext = null;
 try {
@@ -39,8 +38,7 @@ let titleConfiguration = loadTitleConfiguration();
 titleConfiguration.enabled = true;
 const steps = () => buildPresentationSteps(exhibits, selectedExhibitIds,
   { ...titleConfiguration, enabled:launchMode === "full" });
-let selectedExhibitIds = new Set(exhibits.filter(exhibit => exhibit.number !== 1)
-  .map(exhibit => exhibit.id));
+let selectedExhibitIds = new Set(exhibits.map(exhibit => exhibit.id));
 try {
   const saved = JSON.parse(localStorage.getItem(selectionKey) || "null");
   if (Array.isArray(saved)) selectedExhibitIds = new Set(saved.filter(id =>
@@ -63,6 +61,7 @@ function element(tag, className = "", text = "") {
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] === "model" && modelContext) return {page:"model"};
+  if (parts[0] === "end") return {page:"end"};
   if (parts[0] === "configurations") return {page:"index", showConfig:true};
   if (parts[0] === "present") {
     const step = steps().find(item => item.id === decodeURIComponent(parts[1] || ""));
@@ -257,11 +256,11 @@ function enterLiveModel() {
   const sequence = steps();
   const position = sequence.findIndex(step => step.id === current.step?.id);
   const next = sequence[position + 1];
-  if (position < 0 || !next) return;
+  if (position < 0) return;
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte =>
     byte.toString(16).padStart(2, "0")).join("");
   modelContext = {
-    token, launchStepId:current.step.id, nextStepId:next.id,
+    token, launchStepId:current.step.id, nextStepId:next?.id || "end",
     launchMode, selectedExhibitIds:[...selectedExhibitIds],
     titleConfiguration:structuredClone(titleConfiguration),
     displayMode, fullscreen:document.fullscreenElement === app
@@ -283,12 +282,12 @@ function returnFromLiveModel() {
   displayMode = document.fullscreenElement === app ? "presentation" : context.displayMode;
   pendingFullscreenRestore = Boolean(context.fullscreen && document.fullscreenElement !== app);
   const sequence = steps();
-  const next = sequence.find(step => step.id === context.nextStepId) ||
+  const next = (context.nextStepId === "end" ? null : sequence.find(step => step.id === context.nextStepId)) ||
     sequence[sequence.findIndex(step => step.id === context.launchStepId) + 1];
   modelContext = null;
   try { sessionStorage.removeItem(modelSessionKey); } catch { /* in-memory return still works */ }
   if (next) location.hash = stepHref(next);
-  else location.hash = "#/";
+  else location.hash = "#/end";
 }
 
 function liveModelView() {
@@ -522,17 +521,12 @@ async function deck(current, version) {
       });
       block.append(list);
     }
-    if (slide.id !== "results") host.append(block);
+    host.append(block);
     if (slide.id === "opening") {
       const support = element("p", "title-support", slide.support || "");
       support.hidden = !slide.support;
       block.append(support);
       main.updateSupport = value => { support.textContent = value; support.hidden = !value; };
-    }
-    if (current.step.action === "model") {
-      main.disposeModelLink = createModelLink(host, {
-        variant:"small", alwaysOpen:true, onActivate:enterLiveModel
-      });
     }
     if (editTextButton) {
     const editor = element("div", "title-inline-editor");
@@ -575,6 +569,9 @@ async function deck(current, version) {
     });
     }
   }
+  main.disposeModelLink = createModelLink(host, {
+    variant:"small", alwaysOpen:true, onActivate:enterLiveModel
+  });
   stage.append(pane);
   const navigationHint = element("div", "navigation-hint");
   navigationHint.innerHTML = '<span><kbd>Space</kbd> or click <span class="hint-action">next</span></span><span><kbd>←</kbd> previous</span><span><kbd>→</kbd> next</span>';
@@ -604,12 +601,24 @@ async function deck(current, version) {
     showState(0);
     pane.classList.add("is-ready");
     if (["opening","results"].includes(slide.id)) {
-      try {
-        const ambient = await createDormantCarousel(host);
-        if (version !== routeVersion) { ambient.destroy(); return; }
-        activeExhibit = ambient;
-        ambient.start();
-      } catch (problem) { console.error("Dormant background could not start", problem); }
+      const ambient = element("iframe", "authentic-horizon-frame");
+      ambient.title = "Decorative SBI Horizon View";
+      ambient.tabIndex = -1;
+      ambient.setAttribute("aria-hidden", "true");
+      ambient.src = new URL("./integrated-sbi/?ambient=carousel", import.meta.url).href;
+      host.prepend(ambient);
+      const revealHorizon = setInterval(() => {
+        if (!ambient.isConnected) { clearInterval(revealHorizon); return; }
+        try {
+          const body = ambient.contentDocument?.body;
+          if (body?.classList.contains("idleMode") &&
+              ["trace-outline", "fill-country", "stamp-sites", "settle-sites",
+                "reveal-satellites", "dwell"].includes(body.dataset.carouselStage)) {
+            ambient.classList.add("is-ready");
+            clearInterval(revealHorizon);
+          }
+        } catch { /* The local frame is still loading. */ }
+      }, 180);
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
       clearTransition();
@@ -666,6 +675,14 @@ function render() {
   if (current.page === "model") {
     activeStep = null;
     liveModelView();
+  } else if (current.page === "end") {
+    const end = element("main", "presentation-end");
+    end.append(element("h1", "", "Presentation complete"));
+    const restart = element("a", "landing-action landing-action-primary", "Return to beginning");
+    restart.href = stepHref(steps()[0]);
+    end.append(restart);
+    replaceView(end);
+    clearTransition();
   } else if (current.page === "exhibit") {
     deck(current, routeVersion);
   } else if (current.page === "title") {

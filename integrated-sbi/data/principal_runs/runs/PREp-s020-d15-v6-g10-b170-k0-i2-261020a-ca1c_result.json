@@ -1,0 +1,317 @@
+{
+  "schema_version": 2,
+  "run_name": "PREp-s020-d15-v6-g10-b170-k0-i2-261020a-ca1c",
+  "timestamp_utc": "2026-10-20T23:03:46.902375+00:00",
+  "result": {
+    "n_satellites": 1379,
+    "status": "Time limit",
+    "obj_val": 1379.0,
+    "obj_bound": 1323.0,
+    "mip_gap_achieved": 0.04060913705583756,
+    "node_count": 36204,
+    "time_modeling_s": 0.22964554200007115,
+    "time_optimization_s": 14400.385905831994
+  },
+  "cov": {
+    "detection_time_s": 15.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 155.0,
+    "burnout_velocity_km_s": 6.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "max_range_km": 746.4510816639729
+  },
+  "sim": {
+    "horizon_s": 253859.53045986168,
+    "dt_s": 120.08492453162805,
+    "use_j2": true,
+    "analysis_matrix_dtype": "uint8"
+  },
+  "targets": [
+    {
+      "name": "Sohae Satellite Launching Station/Pongdong-ri",
+      "lat_deg": 39.66026497,
+      "lon_deg": 124.7050276
+    },
+    {
+      "name": "Sinpung-dong Missile Operating Base/Taegwan",
+      "lat_deg": 40.301111,
+      "lon_deg": 125.268056
+    },
+    {
+      "name": "Hoejung-ni",
+      "lat_deg": 41.369883,
+      "lon_deg": 126.913631
+    },
+    {
+      "name": "Yongnim/Riman-ri",
+      "lat_deg": 40.483324,
+      "lon_deg": 126.501814
+    },
+    {
+      "name": "Yusang-ni/Milchon-ni",
+      "lat_deg": 39.449886,
+      "lon_deg": 126.259682
+    },
+    {
+      "name": "Winter Palace Missile Launch Site",
+      "lat_deg": 38.91597,
+      "lon_deg": 125.92161
+    }
+  ],
+  "countries": [],
+  "run_config": {
+    "run_name": "PREp-s020-d15-v6-g10-b170-k0-i2-261020a-ca1c",
+    "label": "NK_Principal",
+    "scenario": "PRE",
+    "is_principal_set": true,
+    "is_test_run": false,
+    "settings_key": "PREp-s020-d15-v6-g10-b170-k0-i2-ca1c",
+    "settings_hash": "ca1c",
+    "settings": {
+      "salvo_size": 20,
+      "detection_time_s": 15.0,
+      "burnout_velocity_km_s": 6.0,
+      "max_accel_g": 10.0,
+      "target_missile_burnout_time_s": 170.0,
+      "decision_time_s": 0.0,
+      "n_interceptors_per_sat": 2,
+      "intercept_alt_km": 200.0,
+      "min_elev_deg": 0.0,
+      "dt_target_s": 120.0,
+      "nd_repeat": 3,
+      "altitude_min_km": 200.0,
+      "anchor_lat_margin_deg": 0.0,
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "allow_reducible": true,
+      "useful_reach_deg": 5.0,
+      "scenario": "PRE",
+      "principal": true,
+      "test": false
+    },
+    "target_mode": "prespecified",
+    "target_country": null,
+    "target_shell_n_points": null,
+    "n_targets": 6,
+    "detection_time_s": 15.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 155.0,
+    "burnout_velocity_km_s": 6.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "r_max_km": 746.4510816639729,
+    "salvo_size": 20,
+    "n_interceptors_per_sat": 2,
+    "r_required": 10,
+    "dt_target_s": 120.0,
+    "allow_reducible": true,
+    "useful_reach_deg": 5.0,
+    "orbit_model": "lee_j2",
+    "nd_repeat": 3,
+    "altitude_bounds_km": [
+      200.0,
+      946.4510816639729
+    ],
+    "anchor_lat_margin_deg": 0.0,
+    "anchor_alt_km": 285.8235963299794,
+    "anchor_inc_deg": 41.369883,
+    "anchor_ratio": "47:3",
+    "T_r_s": 253979.6153843933,
+    "L": 2115,
+    "dt_s": 120.08492453162805,
+    "families": [
+      {
+        "N_P": 47,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "47:3",
+        "is_anchor": true,
+        "inc_deg": 41.369883,
+        "alt_km": 285.8235963299794,
+        "a_km": 6663.960596329979,
+        "reach_deg": 6.420130451140865,
+        "inc_floor_deg": 32.49583954885914,
+        "raan_interval_deg": 7.659574468085107,
+        "n_raan_offsets": 31,
+        "n_distinct_slots": 2115,
+        "satellites_selected": 1379
+      },
+      {
+        "N_P": 46,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "46:3",
+        "is_anchor": false,
+        "inc_deg": 37.849893815935566,
+        "alt_km": 383.38410392748574,
+        "a_km": 6761.5211039274855,
+        "reach_deg": 6.219353248061761,
+        "inc_floor_deg": 32.69661675193824,
+        "raan_interval_deg": 7.826086956521739,
+        "n_raan_offsets": 32,
+        "n_distinct_slots": 2115,
+        "satellites_selected": 0
+      },
+      {
+        "N_P": 45,
+        "N_D": 3,
+        "reducible": true,
+        "reduced_ratio": "15:1",
+        "is_anchor": false,
+        "inc_deg": 33.71668166940369,
+        "alt_km": 484.6497675226319,
+        "a_km": 6862.786767522632,
+        "reach_deg": 5.886947013715436,
+        "inc_floor_deg": 33.029022986284566,
+        "raan_interval_deg": 24.0,
+        "n_raan_offsets": 96,
+        "n_distinct_slots": 705,
+        "satellites_selected": 0
+      }
+    ],
+    "seed_generation": {
+      "target_lat_min_deg": 38.91597,
+      "target_lat_max_deg": 41.369883,
+      "target_lat_span_deg": 2.453913,
+      "target_abs_lat_min_deg": 38.91597,
+      "target_abs_lat_max_deg": 41.369883,
+      "target_abs_lat_span_deg": 2.453913,
+      "n_target_points": 6,
+      "alt_min_km": 200.0,
+      "alt_max_km": 946.4510816639729,
+      "alt_max_rule": "intercept_alt + R_max",
+      "r_max_km": 746.4510816639729,
+      "anchor_inc_deg": 41.369883,
+      "anchor_lat_margin_deg": 0.0,
+      "n_anchor_candidates": 7,
+      "n_unique_alt_inc_combos_all_candidates": 51,
+      "n_unique_alt_inc_combos_chosen_ladder": 6,
+      "n_unique_alt_inc_combos_kept": 3,
+      "n_combos_dropped": 3,
+      "n_anchor_rejected_out_of_bounds": 8,
+      "n_anchor_rejected_unconverged": 0,
+      "anchor_candidates": [
+        {
+          "N_P": 41,
+          "alt_km": 943.4402963076509,
+          "n_rungs_generated": 8,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 42,
+          "alt_km": 823.3988527002957,
+          "n_rungs_generated": 8,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 43,
+          "alt_km": 707.8822771070236,
+          "n_rungs_generated": 8,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 44,
+          "alt_km": 596.6121479130024,
+          "n_rungs_generated": 7,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 45,
+          "alt_km": 489.33277679546063,
+          "n_rungs_generated": 7,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 46,
+          "alt_km": 385.8088910546485,
+          "n_rungs_generated": 7,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 47,
+          "alt_km": 285.8235963299794,
+          "n_rungs_generated": 6,
+          "n_members_kept": 2
+        }
+      ],
+      "n_families_kept": 3
+    },
+    "seed_filter": {
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "n_seeds_simulated": 159,
+      "n_seeds_dead": 32,
+      "n_seeds_live": 127,
+      "n_seeds_built": 4,
+      "n_seeds_trimmed": 2,
+      "n_seeds_kept": 2,
+      "build_worst_margin": 63.0,
+      "trim_worst_margin": 32.0,
+      "feasibility_margin_all_slots": 32.0,
+      "n_candidate_satellites": 4230,
+      "param_V_nnz": 427230,
+      "seed_sim_time_s": 46.01397433799866
+    },
+    "seeds_kept": [
+      {
+        "rank": 1,
+        "family": "47:3",
+        "inc_deg": 41.369883,
+        "alt_km": 285.8235963299794,
+        "raan_deg": 2.0
+      },
+      {
+        "rank": 2,
+        "family": "47:3",
+        "inc_deg": 41.369883,
+        "alt_km": 285.8235963299794,
+        "raan_deg": 2.25
+      }
+    ],
+    "solver": {
+      "mip_gap_target": 0.0,
+      "time_limit_s": 14400.0,
+      "stop_at_gap": null,
+      "mip_focus": 0,
+      "heuristics_frac": 0.05,
+      "solver_params": null,
+      "fixed_params": {
+        "CoverCuts": 2,
+        "Cuts": 2,
+        "Symmetry": 2,
+        "LPWarmStart": 1
+      },
+      "symmetry_break": false
+    },
+    "wall_time_s": 14448.449253749
+  },
+  "provenance": {
+    "git_commit": "059f92436212d472a30234e0a276e9c0bc2d23e2",
+    "git_dirty": null,
+    "python": "3.11.17",
+    "libraries": {
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "numba": "0.68.0",
+      "gurobipy": "13.0.3",
+      "boto3": "1.43.111",
+      "pandas": "3.0.6",
+      "geopandas": "1.2.0",
+      "shapely": "2.2.0"
+    },
+    "host": "ip-10-128-229-50.ec2.internal",
+    "platform": "Linux-6.1.172-216.329.amzn2023.x86_64-x86_64-with-glibc2.41",
+    "cpu_count": 32,
+    "aws_batch_job_id": "907d992f-3e5e-41b2-8c10-aab4a781fe75",
+    "image": null
+  }
+}

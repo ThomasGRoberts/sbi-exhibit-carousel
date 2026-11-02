@@ -161,14 +161,14 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 .salvo-overlay { position: absolute; inset: 0; pointer-events: none; }
 .threat-stage { position: absolute; inset: 0; overflow: hidden; background: #fff; }
 .threat-grid {
-  position: absolute; inset: 0; display: grid;
+  position: absolute; inset: 0 6%; display: grid;
   grid-template-columns: repeat(4,minmax(0,1fr)); align-content: center;
-  gap: clamp(10px,1.3vw,20px); padding: clamp(14px,2vw,34px);
+  gap: clamp(13px,1.6vw,24px); padding: clamp(14px,2vw,34px);
   transition: opacity .32s ease;
 }
 .threat-stage.has-zoom .threat-grid { opacity: 0; }
 .threat-stage .scenarioCard {
-  position: relative; height: clamp(150px,18vw,224px); overflow: hidden;
+  position: relative; height: clamp(125px,15vw,185px); overflow: hidden;
   border: 1px solid #dedede; border-radius: 11px; background: #f8f8f8;
   box-shadow: 0 1px 2px #00000006;
   transition: border-color .2s ease,box-shadow .2s ease,transform .2s ease;
@@ -192,15 +192,6 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
 }
 .threat-stage .scenarioCardArrow { display:none;font-weight:650; }
 .threat-stage .scenarioCard[data-selected="true"] .scenarioCardArrow { display:inline; }
-.threat-stage .scenarioCardSiteHalo { fill:none;stroke:#b88b13;stroke-width:1.1;opacity:0;transform-box:fill-box;transform-origin:center; }
-.threat-stage .scenarioCardSite { fill:#b88b13;stroke:none; }
-.threat-stage .scenarioCard[data-selected="false"] .scenarioCardSiteHalo,
-.threat-stage .scenarioCard[data-selected="false"] .scenarioCardSite { display:none; }
-.threat-stage .scenarioCard[data-pulsing="true"] .scenarioCardSiteHalo { animation:threat-site-pulse 1.25s ease-out 1 both; }
-@keyframes threat-site-pulse {
-  0% { transform:scale(.6);opacity:0; } 18% { opacity:.7; }
-  100% { transform:scale(2.3);opacity:0; }
-}
 .threat-stage .threat-zoom {
   position:absolute;z-index:3;pointer-events:none;
   transition:left 1.25s cubic-bezier(.22,1,.36,1),top 1.25s cubic-bezier(.22,1,.36,1),
@@ -211,17 +202,6 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   left:0!important;top:0!important;width:100%!important;height:100%!important;
   border:0;border-radius:0;box-shadow:none;
 }
-.threat-stage .threat-zoom .scenarioCardSiteHalo,
-.threat-stage .threat-zoom .scenarioCardSite { display:none; }
-.iran-site-reveal { opacity:0;transition:opacity .35s ease; }
-.iran-site-reveal.is-visible { opacity:1; }
-.iran-site-leader { fill:none;stroke:#947318;stroke-width:.45;vector-effect:non-scaling-stroke; }
-.iran-site-pulse { fill:none;stroke:#b88b13;stroke-width:.65;opacity:0;transform-box:fill-box;transform-origin:center; }
-.iran-site-reveal.is-visible .iran-site-pulse { animation:threat-site-pulse 1.25s ease-out 1 both; }
-.iran-site-halo { fill:#fff;stroke:#b88b13;stroke-width:.55; }
-.iran-site-core { fill:#b88b13; }
-.iran-site-label { fill:#3d3d3d;stroke:#fff;stroke-width:.7;paint-order:stroke;
-  font:700 2.2px Roboto,Arial,sans-serif; }
 .threat-stage.is-paused * { animation-play-state:paused!important; }
 @media (max-width:800px) {
   .threat-grid { gap:6px;padding:8px; }
@@ -358,7 +338,7 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   color:#626262; background:#ffffffd4; font:500 11px/1.35 Roboto,Arial,sans-serif;
   padding:5px 7px; pointer-events:none; white-space:nowrap; letter-spacing:.01em; }
 .constellation-note strong { display:block; color:#444; font-size:12px; font-weight:700; }
-.threat-grid { width:min(78%,900px); }
+.threat-grid { width:min(70%,720px); }
 .threat-stage .scenarioCardMap { transform:scale(1.055); transform-origin:center; }
 .threat-stage .scenarioCard[data-region="russia"] .scenarioCardMap { transform:scale(1.015); }
 .threat-stage .threat-zoom .iran-globe { position:absolute; z-index:2; inset:0;
@@ -381,16 +361,11 @@ a.sequence-row:hover, a.sequence-row:focus-visible { background: #fff; border-co
   .navigation-hint { font-size:9px; }
   .presentation-logo { width:25%; }
 }
-.threat-stage .iran-site-pulse { fill:none;stroke:#b88b13;stroke-width:1.15; }
-.threat-stage .iran-site-core { fill:#b88b13;stroke:none; }
-.threat-stage .iran-site-reveal.is-visible .iran-site-pulse {
-  animation:threat-site-pulse 1.4s ease-out 1 both; }
 @media (max-width:800px) {
-  .threat-grid { width:94%;gap:7px; }
+  .threat-grid { left:5%;right:5%;width:auto;gap:7px; }
   .threat-stage .scenarioCard { height:auto;aspect-ratio:144/83; }
 }
 .intercept-overlay { position:absolute;inset:0;pointer-events:none; }
-.threat-zoom .iran-site-core { transform-box:fill-box;transform-origin:center;transform:scale(.32); }
 .optimization-overlay { position:absolute; inset:0; pointer-events:none; }
 
 /* Compact agenda and ESPL development controls. */

@@ -86,6 +86,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     })),new THREE.LineBasicMaterial({color:0xb88b13,transparent:true,
       opacity:0,depthTest:true,depthWrite:false}));
   footprint.add(footprintFill,footprintBoundary);
+  footprintFill.renderOrder=3;
+  footprintBoundary.renderOrder=4;
   footprint.renderOrder=5;scene.add(footprint);
   const orbitGeometry=new THREE.BufferGeometry();
   const orbit=new THREE.LineLoop(orbitGeometry,new THREE.LineBasicMaterial({
@@ -94,7 +96,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     new THREE.Float32BufferAttribute([0,0,0],3)),new THREE.PointsMaterial({
     map:circleTexture("#bdbdbd","#777777",15),size:13,sizeAttenuation:false,
     transparent:true,depthTest:true,depthWrite:false,alphaTest:.04}));
-  satellite.frustumCulled=false;satellite.renderOrder=8;scene.add(satellite);
+  satellite.frustumCulled=false;satellite.renderOrder=20;scene.add(satellite);
   const camera=new THREE.OrthographicCamera(-2,2,2,-2,.01,100);
   const overviewCamera=new THREE.Vector3(5,3.2,7);
   camera.position.copy(overviewCamera);camera.lookAt(0,0,0);

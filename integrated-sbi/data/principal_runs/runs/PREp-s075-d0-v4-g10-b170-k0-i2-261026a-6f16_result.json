@@ -1,0 +1,370 @@
+{
+  "schema_version": 2,
+  "run_name": "PREp-s075-d0-v4-g10-b170-k0-i2-261026a-6f16",
+  "timestamp_utc": "2026-10-26T05:29:55.932343+00:00",
+  "result": {
+    "n_satellites": 10620,
+    "status": "Optimal",
+    "obj_val": 10620.0,
+    "obj_bound": 10620.0,
+    "mip_gap_achieved": 0.0,
+    "node_count": 11117,
+    "time_modeling_s": 0.2159469460020773,
+    "time_optimization_s": 692.3831371139968
+  },
+  "cov": {
+    "detection_time_s": 0.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 170.0,
+    "burnout_velocity_km_s": 4.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "max_range_km": 598.4227029617657
+  },
+  "sim": {
+    "horizon_s": 254779.70906664841,
+    "dt_s": 120.0092835923921,
+    "use_j2": true,
+    "analysis_matrix_dtype": "uint8"
+  },
+  "targets": [
+    {
+      "name": "Dombarovsky (13th MD)",
+      "lat_deg": 51.271,
+      "lon_deg": 60.2979
+    },
+    {
+      "name": "Uzhur (62nd MD)",
+      "lat_deg": 55.272,
+      "lon_deg": 89.5783
+    }
+  ],
+  "countries": [],
+  "run_config": {
+    "run_name": "PREp-s075-d0-v4-g10-b170-k0-i2-261026a-6f16",
+    "label": "RU_Principal",
+    "scenario": "PRE",
+    "is_principal_set": true,
+    "is_test_run": false,
+    "settings_key": "PREp-s075-d0-v4-g10-b170-k0-i2-6f16",
+    "settings_hash": "6f16",
+    "settings": {
+      "salvo_size": 75,
+      "detection_time_s": 0.0,
+      "burnout_velocity_km_s": 4.0,
+      "max_accel_g": 10.0,
+      "target_missile_burnout_time_s": 170.0,
+      "decision_time_s": 0.0,
+      "n_interceptors_per_sat": 2,
+      "intercept_alt_km": 200.0,
+      "min_elev_deg": 0.0,
+      "dt_target_s": 120.0,
+      "nd_repeat": 3,
+      "altitude_min_km": 200.0,
+      "anchor_lat_margin_deg": 0.0,
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "allow_reducible": true,
+      "useful_reach_deg": 5.0,
+      "scenario": "PRE",
+      "principal": true,
+      "test": false
+    },
+    "target_mode": "prespecified",
+    "target_country": null,
+    "target_shell_n_points": null,
+    "n_targets": 2,
+    "detection_time_s": 0.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 170.0,
+    "burnout_velocity_km_s": 4.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "r_max_km": 598.4227029617657,
+    "salvo_size": 75,
+    "n_interceptors_per_sat": 2,
+    "r_required": 38,
+    "dt_target_s": 120.0,
+    "allow_reducible": true,
+    "useful_reach_deg": 5.0,
+    "orbit_model": "lee_j2",
+    "nd_repeat": 3,
+    "altitude_bounds_km": [
+      200.0,
+      798.4227029617657
+    ],
+    "anchor_lat_margin_deg": 0.0,
+    "anchor_alt_km": 202.62843476541093,
+    "anchor_inc_deg": 55.272,
+    "anchor_ratio": "48:3",
+    "T_r_s": 254899.71835024082,
+    "L": 2124,
+    "dt_s": 120.0092835923921,
+    "families": [
+      {
+        "N_P": 48,
+        "N_D": 3,
+        "reducible": true,
+        "reduced_ratio": "16:1",
+        "is_anchor": true,
+        "inc_deg": 55.272,
+        "alt_km": 202.62843476541093,
+        "a_km": 6580.765434765411,
+        "reach_deg": 1.6194311262663685,
+        "inc_floor_deg": 49.65156887373363,
+        "raan_interval_deg": 22.5,
+        "n_raan_offsets": 90,
+        "n_distinct_slots": 708,
+        "satellites_selected": 0
+      },
+      {
+        "N_P": 47,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "47:3",
+        "is_anchor": false,
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "a_km": 6674.617275573826,
+        "reach_deg": 5.1084705093289235,
+        "inc_floor_deg": 46.162529490671076,
+        "raan_interval_deg": 7.659574468085107,
+        "n_raan_offsets": 31,
+        "n_distinct_slots": 2124,
+        "satellites_selected": 10620
+      },
+      {
+        "N_P": 46,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "46:3",
+        "is_anchor": false,
+        "inc_deg": 50.9697810835248,
+        "alt_km": 393.7770864595168,
+        "a_km": 6771.9140864595165,
+        "reach_deg": 4.861838630079853,
+        "inc_floor_deg": 46.40916136992015,
+        "raan_interval_deg": 7.826086956521739,
+        "n_raan_offsets": 32,
+        "n_distinct_slots": 2124,
+        "satellites_selected": 0
+      },
+      {
+        "N_P": 45,
+        "N_D": 3,
+        "reducible": true,
+        "reduced_ratio": "15:1",
+        "is_anchor": false,
+        "inc_deg": 48.45531577749194,
+        "alt_km": 494.7292806362875,
+        "a_km": 6872.866280636287,
+        "reach_deg": 4.439062197396414,
+        "inc_floor_deg": 46.83193780260359,
+        "raan_interval_deg": 24.0,
+        "n_raan_offsets": 96,
+        "n_distinct_slots": 708,
+        "satellites_selected": 0
+      }
+    ],
+    "seed_generation": {
+      "target_lat_min_deg": 51.271,
+      "target_lat_max_deg": 55.272,
+      "target_lat_span_deg": 4.000999999999998,
+      "target_abs_lat_min_deg": 51.271,
+      "target_abs_lat_max_deg": 55.272,
+      "target_abs_lat_span_deg": 4.000999999999998,
+      "n_target_points": 2,
+      "alt_min_km": 200.0,
+      "alt_max_km": 798.4227029617657,
+      "alt_max_rule": "intercept_alt + R_max",
+      "r_max_km": 598.4227029617657,
+      "anchor_inc_deg": 55.272,
+      "anchor_lat_margin_deg": 0.0,
+      "n_anchor_candidates": 6,
+      "n_unique_alt_inc_combos_all_candidates": 36,
+      "n_unique_alt_inc_combos_chosen_ladder": 6,
+      "n_unique_alt_inc_combos_kept": 4,
+      "n_combos_dropped": 2,
+      "n_anchor_rejected_out_of_bounds": 8,
+      "n_anchor_rejected_unconverged": 0,
+      "anchor_candidates": [
+        {
+          "N_P": 43,
+          "alt_km": 718.3244572500362,
+          "n_rungs_generated": 6,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 44,
+          "alt_km": 607.6285023397586,
+          "n_rungs_generated": 6,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 45,
+          "alt_km": 500.9370580617924,
+          "n_rungs_generated": 6,
+          "n_members_kept": 2
+        },
+        {
+          "N_P": 46,
+          "alt_km": 398.0149734382494,
+          "n_rungs_generated": 6,
+          "n_members_kept": 2
+        },
+        {
+          "N_P": 47,
+          "alt_km": 298.64548775878757,
+          "n_rungs_generated": 6,
+          "n_members_kept": 3
+        },
+        {
+          "N_P": 48,
+          "alt_km": 202.62843476541093,
+          "n_rungs_generated": 6,
+          "n_members_kept": 3
+        }
+      ],
+      "n_families_kept": 4
+    },
+    "seed_filter": {
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "n_seeds_simulated": 249,
+      "n_seeds_dead": 27,
+      "n_seeds_live": 222,
+      "n_seeds_built": 28,
+      "n_seeds_trimmed": 17,
+      "n_seeds_kept": 11,
+      "build_worst_margin": 195.0,
+      "trim_worst_margin": 80.0,
+      "feasibility_margin_all_slots": 80.0,
+      "n_candidate_satellites": 23364,
+      "param_V_nnz": 439668,
+      "seed_sim_time_s": 72.04781208699569
+    },
+    "seeds_kept": [
+      {
+        "rank": 1,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 0.0
+      },
+      {
+        "rank": 2,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 6.5
+      },
+      {
+        "rank": 3,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 1.25
+      },
+      {
+        "rank": 4,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 1.0
+      },
+      {
+        "rank": 5,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 1.5
+      },
+      {
+        "rank": 6,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 2.5
+      },
+      {
+        "rank": 7,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 2.75
+      },
+      {
+        "rank": 8,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 3.0
+      },
+      {
+        "rank": 9,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 3.25
+      },
+      {
+        "rank": 10,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 3.75
+      },
+      {
+        "rank": 11,
+        "family": "47:3",
+        "inc_deg": 53.22832772587863,
+        "alt_km": 296.4802755738265,
+        "raan_deg": 4.0
+      }
+    ],
+    "solver": {
+      "mip_gap_target": 0.0,
+      "time_limit_s": 14400.0,
+      "stop_at_gap": null,
+      "mip_focus": 0,
+      "heuristics_frac": 0.05,
+      "solver_params": null,
+      "fixed_params": {
+        "CoverCuts": 2,
+        "Cuts": 2,
+        "Symmetry": 2,
+        "LPWarmStart": 1
+      },
+      "symmetry_break": false
+    },
+    "wall_time_s": 765.8611699970206
+  },
+  "provenance": {
+    "git_commit": "059f92436212d472a30234e0a276e9c0bc2d23e2",
+    "git_dirty": null,
+    "python": "3.11.17",
+    "libraries": {
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "numba": "0.68.0",
+      "gurobipy": "13.0.3",
+      "boto3": "1.43.111",
+      "pandas": "3.0.6",
+      "geopandas": "1.2.0",
+      "shapely": "2.2.0"
+    },
+    "host": "ip-10-128-229-25.ec2.internal",
+    "platform": "Linux-6.1.172-216.329.amzn2023.x86_64-x86_64-with-glibc2.41",
+    "cpu_count": 32,
+    "aws_batch_job_id": "d03b2f66-b09a-4715-827d-ce3437f93f4b",
+    "image": null
+  }
+}

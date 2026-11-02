@@ -1,53 +1,12 @@
 import * as THREE from "three";
-import { makeEarth, makeRegion, latLonVector } from "./globe-geometry.js";
-import { SBI_GOLD } from "./sbi-style.js";
+import { makeEarth, makeRegion } from "./globe-geometry.js";
 import { createAnimation as createSalvoAnimation } from "./missile-salvo.js";
 
 const ORDER=["north-korea","iran","china","russia"];
 const NAMES={"north-korea":"North Korea",iran:"Iran",china:"China",russia:"Russia"};
 const SVG_NS="http://www.w3.org/2000/svg";
-const GOLD=SBI_GOLD;
-const SITE_COORDS=[[35.23878672,53.94957116],[36.20108979,55.33387388]];
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x);return x*x*(3-2*x);};
-function surfaceGeometry(normal,inner,outer) {
-  const tangent=new THREE.Vector3(0,1,0).cross(normal).normalize();
-  const across=normal.clone().cross(tangent).normalize();
-  const values=[],indices=[],segments=64;
-  if(inner===0)values.push(...normal.clone().multiplyScalar(1.003).toArray());
-  for(let i=0;i<=segments;i++) {
-    const angle=i*2*Math.PI/segments;
-    for(const radius of inner===0?[outer]:[inner,outer]) {
-      const point=normal.clone().multiplyScalar(Math.cos(radius))
-        .addScaledVector(tangent,Math.sin(radius)*Math.cos(angle))
-        .addScaledVector(across,Math.sin(radius)*Math.sin(angle))
-        .multiplyScalar(1.003);
-      values.push(...point.toArray());
-    }
-    if(i<segments) {
-      if(inner===0)indices.push(0,i+1,i+2);
-      else {const k=2*i;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
-    }
-  }
-  return new THREE.BufferGeometry().setAttribute("position",
-    new THREE.Float32BufferAttribute(values,3)).setIndex(indices);
-}
-function svgNode(name,attributes={}) {
-  const element=document.createElementNS(SVG_NS,name);
-  for(const [key,value] of Object.entries(attributes))
-    element.setAttribute(key,String(value));
-  return element;
-}
-function addIranReveal(svg) {
-  const source=[...svg.querySelectorAll(".scenarioCardSite")];
-  source.forEach((site,index)=>{
-    const cx=Number(site.getAttribute("cx")),cy=Number(site.getAttribute("cy"));
-    const group=svgNode("g",{"class":"iran-site-reveal","data-site":index+1});
-    const pulse=svgNode("circle",{cx,cy,r:2.4,"class":"iran-site-pulse"});
-    const core=svgNode("circle",{cx,cy,r:2.8,"class":"iran-site-core"});
-    group.append(pulse,core);svg.append(group);
-  });
-}
 export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const responses=await Promise.all([
     fetch(new URL("../assets/scenario-tiles.json",import.meta.url)),
@@ -86,15 +45,14 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   stage.append(grid);host.append(stage);
   let stateIndex=0,overlay=null,expansionStarted=0,destroyed=false,paused=true;
   let expansionFrame=0,globeFrame=0,globeRenderer=null,globeObserver=null;
-  let globeScene=null,globeSites=[],globeCanvas=null;
+  let globeScene=null,globeCanvas=null;
   let salvoHost=null,salvoAnimation=null,salvoLoad=null;
-  const siteStarted=[-Infinity,-Infinity];
   function hideOverlay(){
     cancelAnimationFrame(expansionFrame);
     cancelAnimationFrame(globeFrame);globeFrame=0;
     globeObserver?.disconnect();globeObserver=null;
     globeScene?.traverse(object=>{object.geometry?.dispose();object.material?.dispose();});
-    globeRenderer?.dispose();globeRenderer=null;globeScene=null;globeSites=[];
+    globeRenderer?.dispose();globeRenderer=null;globeScene=null;
     overlay?.remove();overlay=null;
     stage.classList.remove("has-zoom");
   }
@@ -111,17 +69,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       globeScene.add(region.group);
     }
     const camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);
-    globeSites=SITE_COORDS.map(([lat,lon])=>{
-      const normal=latLonVector(lat,lon).normalize();
-      const dot=new THREE.Mesh(surfaceGeometry(normal,0,.0036),
-        new THREE.MeshBasicMaterial({color:GOLD,side:THREE.DoubleSide,
-          transparent:true,depthTest:false,depthWrite:false}));
-      const pulse=new THREE.Mesh(surfaceGeometry(normal,.0052,.0068),
-        new THREE.MeshBasicMaterial({color:GOLD,side:THREE.DoubleSide,
-          transparent:true,opacity:0,depthTest:false,depthWrite:false}));
-      dot.renderOrder=10;pulse.renderOrder=11;
-      globeScene.add(dot,pulse);return {normal,dot,pulse};
-    });
     const resizeGlobe=()=>{
       if(!globeRenderer||!overlay)return;
       // The tile changes size for two seconds. Keep one WebGL drawing buffer
@@ -141,19 +88,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       // Match the first Iran-salvo frame exactly, including projection scale.
       camera.position.copy(iranFocus).multiplyScalar(3);
       camera.up.set(0,1,0);camera.lookAt(0,0,0);
-      globeSites.forEach((site,index)=>{
-        const visible=stateIndex>=index+6;
-        site.dot.visible=visible;
-        const fraction=(now-siteStarted[index])/1250;
-        site.pulse.visible=visible&&fraction>=0&&fraction<1;
-        if(site.pulse.visible) {
-          const radius=.006+.015*ease(fraction);
-          site.pulse.geometry.dispose();
-          site.pulse.geometry=surfaceGeometry(site.normal,
-            Math.max(.001,radius-.0008),radius+.0008);
-          site.pulse.material.opacity=.72*(1-fraction)**2;
-        }
-      });
       globeRenderer.render(globeScene,camera);
       globeFrame=requestAnimationFrame(draw);
     };
@@ -173,7 +107,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     overlay.style.height=rect.height+"px";
     overlay.innerHTML=byRegion.get("iran");
     const svg=overlay.querySelector("svg");
-    addIranReveal(svg);
     stage.append(overlay);
     if(instant){
       overlay.style.transition="none";
@@ -187,18 +120,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       stage.classList.add("has-zoom");
       overlay?.classList.add("is-expanded");
     });
-  }
-  function updateReveal(replay=false) {
-    if(!overlay)return;
-    for(const item of overlay.querySelectorAll(".iran-site-reveal")) {
-      const required=Number(item.dataset.site)+5;
-      item.classList.toggle("is-visible",stateIndex>=required);
-      if(replay&&stateIndex===required) {
-        item.classList.remove("is-visible");
-        void item.getBoundingClientRect();
-        item.classList.add("is-visible");
-      }
-    }
   }
   async function showIranSalvo() {
     if(!salvoHost) {
@@ -249,14 +170,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       if(salvoHost)salvoHost.style.visibility="hidden";
       salvoAnimation?.pause();
     }
-    const siteTime=Math.max(performance.now(),expansionStarted+1550);
-    if(replay&&(stateIndex===6||stateIndex===7))siteStarted[stateIndex-6]=siteTime;
-    if(stateIndex>=6&&siteStarted[0]===-Infinity)siteStarted[0]=siteTime;
-    if(stateIndex>=7&&siteStarted[1]===-Infinity)siteStarted[1]=siteTime;
-    updateReveal(replay);
     host.dataset.stage=String(stateIndex+1);
     host.dataset.scenario=selected||"none";
-    host.dataset.visibleIranSites=String(Math.min(2,Math.max(0,stateIndex-5)));
+    host.dataset.visibleIranSites="0";
   }
   function goToState(index) {
     if(destroyed||index<0||index>=9||index===stateIndex)return false;

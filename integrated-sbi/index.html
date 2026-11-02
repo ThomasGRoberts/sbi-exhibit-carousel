@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optimizing Space-Based Missile Defense</title>
+  <link rel="stylesheet" href="style.css?v=staging-round-1" />
+  <link rel="stylesheet" href="control-panel.css?v=carousel-local-1" />
+</head>
+
+<body>
+  <div id="ui">
+    <div id="panelFlipper" class="panelFlipper">
+      <div id="panelFront" class="panelFace panelFront" role="region" aria-label="Constellation controls" aria-hidden="false" tabindex="0">
+        <div class="panelHeading">
+          <h1>Optimizing Space-Based Missile Defense</h1>
+          <p class="introText">Explore space-based interceptor constellations for defending against various missile threats.</p>
+        </div>
+
+        <details id="threatDetails" class="panelSection threatCharacterization" open>
+          <summary class="threatSummaryRow"><span id="threatHeading" class="panelSectionHeading">Threat Characterization</span><span id="threatCompactSummary" class="threatCompactSummary">10 missiles from North Korea</span><span class="threatChevron" aria-hidden="true"><span class="disclosureGlyph">‹</span></span></summary>
+          <div class="threatContents">
+          <div class="scenarioPicker" aria-labelledby="scenarioPickerHeading">
+            <h3 id="scenarioPickerHeading" class="inputHeading">Geographic Region</h3>
+            <div class="scenarioCardGrid" role="group" aria-labelledby="scenarioPickerHeading">
+              <div class="scenarioCard" data-region="north-korea" data-selected="true"><button type="button" class="scenarioCardSelect" aria-pressed="true" aria-label="Open North Korea scenario details"><svg class="scenarioCardMap" viewBox="0 0 144 87" aria-hidden="true"></svg><span class="scenarioCardName">North Korea <span class="scenarioCardArrow" aria-hidden="true">→</span></span><span class="scenarioCardInfo" aria-hidden="true">i</span></button></div>
+              <div class="scenarioCard" data-region="iran" data-selected="false"><button type="button" class="scenarioCardSelect" aria-pressed="false" aria-label="Select Iran"><svg class="scenarioCardMap" viewBox="0 0 144 87" aria-hidden="true"></svg><span class="scenarioCardName">Iran <span class="scenarioCardArrow" aria-hidden="true">→</span></span><span class="scenarioCardInfo" aria-hidden="true">i</span></button></div>
+              <div class="scenarioCard" data-region="china" data-selected="false"><button type="button" class="scenarioCardSelect" aria-pressed="false" aria-label="Select China"><svg class="scenarioCardMap" viewBox="0 0 144 87" aria-hidden="true"></svg><span class="scenarioCardName">China <span class="scenarioCardArrow" aria-hidden="true">→</span></span><span class="scenarioCardInfo" aria-hidden="true">i</span></button></div>
+              <div class="scenarioCard" data-region="russia" data-selected="false"><button type="button" class="scenarioCardSelect" aria-pressed="false" aria-label="Select Russia"><svg class="scenarioCardMap" viewBox="0 0 144 87" aria-hidden="true"></svg><span class="scenarioCardName">Russia <span class="scenarioCardArrow" aria-hidden="true">→</span></span><span class="scenarioCardInfo" aria-hidden="true">i</span></button></div>
+            </div>
+          </div>
+
+          <div class="principalControls" aria-labelledby="salvoHeading">
+            <h3 id="salvoHeading" class="inputHeading">Salvo Size <span class="headingUnit">missiles</span></h3>
+            <div id="salvoOptions" class="discreteOptions salvoOptions" role="group" aria-labelledby="salvoHeading"></div>
+          </div>
+          </div>
+        </details>
+
+        <details id="advancedOptions" class="panelSection advancedOptions">
+          <summary><span class="advancedHeading">Advanced Configurations</span><span id="advancedCompactSummary" class="advancedCompactSummary"></span><span class="advancedChevron" aria-hidden="true"><span class="disclosureGlyph">‹</span></span></summary>
+          <div class="advancedFields">
+            <div class="advancedField"><div class="advancedFieldLabel" id="detectionLabel">Detection time <span>seconds</span></div><div id="detectionOptions" class="discreteOptions advancedChoices" role="group" aria-labelledby="detectionLabel"></div></div>
+            <div class="advancedField"><div class="advancedFieldLabel" id="velocityLabel">Interceptor burnout speed <span>km/s</span></div><div id="velocityOptions" class="discreteOptions advancedChoices" role="group" aria-labelledby="velocityLabel"></div></div>
+            <div class="advancedField"><div class="advancedFieldLabel" id="capacityLabel">Interceptors per satellite</div><div id="capacityOptions" class="discreteOptions advancedChoices" role="group" aria-labelledby="capacityLabel"></div></div>
+          </div>
+        </details>
+
+        <section class="panelSection principalResult" aria-labelledby="resultHeading">
+          <p id="principalResultIntro" class="statIntro">To defend against this threat, a constellation of boost-phase interceptors needs:</p>
+          <div class="resultMain"><strong id="principalSatelliteStat" aria-live="polite">—</strong><span id="resultHeading">satellites</span><span class="resultPlaneLine">in <span id="principalPlaneStat" aria-live="polite">—</span> orbital planes</span></div>
+          <p id="principalResultStatus" class="principalResultStatus" hidden></p>
+          <p id="panelError" class="panelError" role="alert" hidden></p>
+        </section>
+
+        <section class="panelSection coverageChartSection" aria-label="Dynamic satellite coverage chart">
+          <canvas id="coverageChart" width="280" height="142" role="img" aria-label="Minimum, average, and maximum satellites within range of launch sites over the recent playback window"></canvas>
+        </section>
+
+        <div class="legacyPanelData" hidden aria-hidden="true">
+          <select id="countrySelect"></select>
+          <select id="interceptorSelect"></select>
+          <select id="salvoSelect"></select>
+          <div id="satelliteStat"></div>
+          <div id="planeStat"></div>
+          <div id="status"></div>
+        </div>
+      </div>
+
+      <div id="panelBack" class="panelFace panelBack" aria-hidden="true" inert>
+        <div class="scenarioTopMatter">
+          <div class="scenarioDetailHeader">
+            <button id="scenarioBackBtn" type="button" aria-label="Configure a different threat">
+              <svg class="scenarioBackArrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>
+              <span>Configure a different threat</span>
+            </button>
+          </div>
+
+          <div class="scenarioIdentity">
+            <nav id="scenarioNavigator" class="scenarioNavigator" aria-label="Choose threat scenario">
+              <button type="button" data-threat-region="china">China</button>
+              <button type="button" data-threat-region="iran">Iran</button>
+              <button type="button" data-threat-region="north-korea">North Korea</button>
+              <button type="button" data-threat-region="russia">Russia</button>
+            </nav>
+          </div>
+        </div>
+
+        <div class="scenarioBody">
+          <div id="scenarioLoading" class="scenarioDetailMessage" role="status">Loading scenario details…</div>
+          <div id="scenarioEmpty" class="scenarioDetailMessage scenarioDetailEmpty" role="status" hidden></div>
+          <div id="scenarioError" class="scenarioDetailMessage scenarioDetailError" role="alert" hidden></div>
+
+          <div id="scenarioDetailContent" class="scenarioDetailContent" hidden>
+            <section class="scenarioNarrativeSection" aria-labelledby="scenarioNarrativeHeading">
+              <h3 id="scenarioNarrativeHeading" class="scenarioSectionHeading">Why these missiles?</h3>
+              <div id="scenarioNarrative" class="scenarioNarrative"></div>
+            </section>
+
+            <section class="scenarioMapSection" aria-labelledby="scenarioMapHeading">
+              <h3 id="scenarioMapHeading" class="scenarioSectionHeading">Which launch sites?</h3>
+              <div class="scenarioMapFrame">
+                <svg id="scenarioDetailMap" class="scenarioDetailMap" aria-label="Threat-region launch locations"></svg>
+                <span class="scenarioMapCoordinateLabel"></span>
+              </div>
+              <div class="scenarioLocationCarousel">
+                <div class="scenarioLocationNavigation" aria-label="Launch-site carousel navigation">
+                  <button id="scenarioLocationPrevious" class="scenarioLocationArrow" type="button" aria-label="Show previous launch site">‹</button>
+                  <div id="scenarioLocationIndicators" class="scenarioLocationIndicators" role="tablist" aria-label="Launch-site carousel positions"></div>
+                  <button id="scenarioLocationNext" class="scenarioLocationArrow" type="button" aria-label="Show next launch site">›</button>
+                </div>
+                <div id="scenarioLocationDetail" class="scenarioLocationDetail" aria-live="polite"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="panelToggleBtn" type="button" aria-label="Hide control panel" aria-expanded="true">
+      <span class="panelToggleInner" aria-hidden="true">
+        <span class="panelToggleFace panelToggleFaceFront">‹</span>
+        <span class="panelToggleFace panelToggleFaceBack">‹</span>
+      </span>
+    </button>
+  </div>
+
+  <div id="lowerControls" class="lowerControls">
+  <div class="playbackDock" aria-label="Visualization playback controls">
+    <div class="playbackRow">
+      <button id="speedDownBtn" class="miniControl speedMini" title="Slow down" aria-label="Slow down"><span class="doubleTriangle doubleTriangleLeft"></span></button>
+      <button id="playBtn" class="miniControl playPauseMini" title="Play / Pause"><span class="pauseIcon"></span></button>
+      <button id="speedUpBtn" class="miniControl speedMini" title="Speed up" aria-label="Speed up"><span class="doubleTriangle doubleTriangleRight"></span></button>
+      <input id="timelineSlider" type="range" min="0" max="12" step="0.01" value="0" aria-label="Playback time">
+      <span id="timelineTime" aria-live="polite">00:00</span>
+    </div>
+  </div>
+
+  <!-- Viewport-anchored legend: intentionally outside the scrollable control panel. -->
+  <div class="legendContainer">
+    <div id="legend3D" class="legendList">
+      <div class="legendRow">
+        <button type="button" class="legendDot legendDotActive" aria-label="First step: start cinematic carousel" title="First step: start cinematic carousel"></button>
+        <span>Satellite within range</span>
+      </div>
+
+      <div class="legendRow">
+        <button type="button" class="legendDot legendDotInactive" aria-label="Second step: start cinematic carousel" title="Second step: start cinematic carousel"></button>
+        <span>Satellite out of range</span>
+      </div>
+      <div id="legendSiteRow" class="legendRow legendSiteRow" hidden>
+        <span class="legendSiteDot" aria-hidden="true"></span>
+        <span>Missile launch site</span>
+      </div>
+    </div>
+
+    <div id="legend2D" class="legend2D">
+      <div class="gradientLegendRow">
+        <div class="noCoverageSwatch"></div>
+        <div class="gradientLegendBar"></div>
+      </div>
+
+      <div class="gradientLegendLabels">
+        <span>No coverage</span>
+        <span id="coverageRangeLabel">
+          <span class="coverageRangeMin">1</span>
+          <span class="coverageRangeText">satellites within range</span>
+          <span id="coverageMaxLabel" class="coverageRangeMax">Max</span>
+        </span>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="cameraControls">
+    <a id="projectLink" href="https://espl.ae.gatech.edu/research/projects/sbi/" target="_top" aria-label="Learn more about the SBI project">
+      <span class="projectLinkIcon" aria-hidden="true">
+        <canvas id="projectFlourishCanvas" width="116" height="116"></canvas>
+      </span>
+      <span class="projectLinkLabel">About this project<svg class="projectLinkArrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg></span>
+    </a>
+    <button id="zoomInBtn" class="cameraBtn" title="Zoom in">+</button>
+    <button id="zoomOutBtn" class="cameraBtn" title="Zoom out">−</button>
+    <button id="viewToggleBtn" class="cameraBtn" title="Switch to 2D Map" aria-label="Switch to 2D Map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-2 6 2 6-2v14l-6 2-6 2zM9 4v14M15 6v14"/></svg></button>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="map2dCanvas"></canvas>
+    <canvas id="mapTransitionCanvas" aria-hidden="true"></canvas>
+    <canvas id="mapIntroCanvas" aria-hidden="true"></canvas>
+    <div id="mapSiteLayer" aria-label="Threat launch sites"></div>
+  </div>
+  <div id="siteTooltip" role="group" aria-label="Launch site" hidden>
+    <span id="siteTooltipName"></span>
+    <button id="siteTooltipLearnMore" type="button">Learn More <span aria-hidden="true">→</span></button>
+  </div>
+
+  <a id="gtLogo" href="https://espl.ae.gatech.edu/" target="_top" aria-label="Engineering Space Policy Laboratory home">
+    <img src="assets/ESPL.png" alt="">
+  </a>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "topojson-client": "https://cdn.jsdelivr.net/npm/topojson-client@3/+esm",
+      "d3-geo": "https://cdn.jsdelivr.net/npm/d3-geo@3/+esm",
+      "d3-delaunay": "https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm",
+      "d3-geo-projection": "https://cdn.jsdelivr.net/npm/d3-geo-projection@4/+esm"
+    }
+  }
+  </script>
+
+  <script type="module" src="app.js?v=carousel-local-1"></script>
+  <script type="module" src="control-panel.js?v=comment-log-2"></script>
+  <script type="module" src="glossary.js?v=comment-log-3"></script>
+  <script type="module" src="project-flourish.js?v=18"></script>
+  <script type="module" src="presentation-bridge.js?v=1"></script>
+</body>
+</html>

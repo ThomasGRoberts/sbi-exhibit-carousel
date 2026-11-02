@@ -188,9 +188,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     samplings.forEach((sampling,index)=>{
       sampling.global.visible=current.global>.005 && index===(stateIndex<4?0:1);
       sampling.global.material.opacity=.18*current.global;
-      sampling.selected.visible=current.target[index]>.005;
+      sampling.selected.visible=false;
       const uniforms=sampling.uniforms;
-      uniforms.opacity.value=current.target[index];
+      uniforms.opacity.value=0;
       uniforms.goldFraction.value=current.gold[index];
       uniforms.size.value=mix(40,goldSizes[index],current.gold[index]);
       uniforms.goldRadius.value=goldRadii[index];
@@ -216,7 +216,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     constellations.forEach((constellation,index)=>{
       const orbit=current.orbit[index],satellite=current.satellite[index];
       constellation.group.visible=orbit>.001||satellite>.001;
-      constellation.orbits.material.opacity=.14*Math.min(1,orbit*3);
+      constellation.orbits.material.color.setHex(0x484848);
+      constellation.orbits.material.opacity=.43*Math.min(1,orbit*3);
       const progress=clamp(orbit,0,1);
       const whole=Math.floor(progress*constellation.planeCount);
       const fraction=progress*constellation.planeCount-whole;
@@ -270,6 +271,15 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       result.line[1]=ease(.62,.7,progress);
       result.draw[1]=ease(.64,.95,progress);
       result.fill[1]=ease(.82,1,progress);
+    } else if((from===0&&to===2)||(from===4&&to===6)) {
+      const index=to<4?0:1;
+      result.distance=mix(spec.from.distance,spec.to.distance,ease(0,.88,progress));
+      if(index===0)result.horizon=ease(.18,.94,progress);
+      result.line[index]=mix(spec.from.line[index],.66,ease(.12,.5,progress));
+      result.draw[index]=1;
+      result.fill[index]=mix(spec.from.fill[index],1,ease(.35,.7,progress));
+      result.orbit[index]=ease(.32,.86,progress);
+      result.satellite[index]=ease(.52,.98,progress);
     } else if((from===0&&to===1)||(from===4&&to===5)) {
       const index=to<4?0:1;
       result.distance=mix(spec.from.distance,spec.to.distance,ease(0,.68,progress));

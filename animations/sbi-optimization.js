@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import {makeEarth, makeRegion, latLonVector, circleTexture} from "./globe-geometry.js";
 import {orbitalElements, orbitalPosition, MU} from "./constellation-common.js";
-import {EARTH_ROTATION_RATE_RAD_PER_SEC as OMEGA, SBI_GOLD} from "./sbi-style.js";
+import {EARTH_ROTATION_RATE_RAD_PER_SEC as OMEGA} from "./sbi-style.js";
 
 const RAD=Math.PI/180,TAU=2*Math.PI,STATES=3;
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -9,22 +9,6 @@ const ease=v=>{v=clamp(v);return v*v*(3-2*v);};
 const INTRO_DURATION=8.4,WALKER_REVEAL=3.4,PLAYBACK_RATE=160;
 const IRAN_VIEW_YAW=3.77;
 
-function surfaceRing(normal,inner,outer) {
-  const tangent=new THREE.Vector3(0,1,0).cross(normal).normalize();
-  const across=normal.clone().cross(tangent).normalize();
-  const positions=[],indices=[];
-  for(let i=0;i<=64;i++)for(const radius of [inner,outer]) {
-    const angle=i*TAU/64;
-    const p=normal.clone().multiplyScalar(Math.cos(radius))
-      .addScaledVector(tangent,Math.sin(radius)*Math.cos(angle))
-      .addScaledVector(across,Math.sin(radius)*Math.sin(angle))
-      .multiplyScalar(1.003);
-    positions.push(...p.toArray());
-    if(i<64&&radius===outer){const j=2*i;indices.push(j,j+1,j+2,j+1,j+3,j+2);}
-  }
-  return new THREE.BufferGeometry().setAttribute("position",
-    new THREE.Float32BufferAttribute(positions,3)).setIndex(indices);
-}
 function orbitLine(element,opacity=.14) {
   const values=[];
   for(let i=0;i<=180;i++)values.push(...orbitalPosition(element,
@@ -79,18 +63,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const earth=makeEarth(geography);
     const region=makeRegion(iran.geometry.coordinates[0].map(([lon,lat])=>[lat,lon]));
     earth.add(region.group);
-    const sites=siteNormals.map(normal=>{
-      const core=new THREE.Mesh(surfaceRing(normal,0,.008),
-        new THREE.MeshBasicMaterial({color:isRgt?SBI_GOLD:0x4a4a4a,
-          side:THREE.DoubleSide,transparent:true,opacity:.95,
-          depthTest:true,depthWrite:false}));
-      core.renderOrder=12;earth.add(core);
-      const pulse=new THREE.Mesh(surfaceRing(normal,.011,.013),
-        new THREE.MeshBasicMaterial({color:SBI_GOLD,side:THREE.DoubleSide,
-          transparent:true,opacity:0,depthTest:true,depthWrite:false}));
-      pulse.renderOrder=13;earth.add(pulse);
-      return {normal,core,pulse};
-    });
     root.add(earth);
     const dots=fleet(elements.length,markerTexture);root.add(dots);
     const orbits=new THREE.Group();
@@ -99,7 +71,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     else for(let plane=0;plane<design.planes;plane++)
       orbits.add(orbitLine(elements[plane*design.satellitesPerPlane],.14));
     root.add(orbits);
-    return {root,earth,region,sites,dots,orbits};
+    return {root,earth,region,dots,orbits};
   }
   const left=panel(selected,true),right=panel(walker,false);
   const camera=new THREE.OrthographicCamera(-2,2,2,-2,.01,100);
@@ -146,22 +118,6 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     left.region.fill.material.opacity=.82*ease((scenarioAge-2.1)/.75);
     right.region.fill.material.opacity=.82;
     right.region.outline.visible=false;
-    for(const [index,site] of left.sites.entries()){
-      const age=scenarioAge-3.0-index*.24;
-      site.core.visible=age>=0;
-      site.core.material.color.setHex(SBI_GOLD).lerp(
-        new THREE.Color(0x4a4a4a),ease((scenarioAge-5.0)/.8));
-      site.pulse.visible=age>=0&&age<1.4;
-      if(site.pulse.visible){
-        const f=age/1.4,r=.011+.026*ease(f);
-        site.pulse.geometry.dispose();
-        site.pulse.geometry=surfaceRing(site.normal,r-.001,r+.001);
-        site.pulse.material.opacity=.72*(1-f)**2;
-      }
-    }
-    for(const site of right.sites){
-      site.core.visible=stage>=1;site.pulse.visible=false;
-    }
   }
   function drawOverlay() {
     ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);
@@ -172,11 +128,16 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     ctx.globalAlpha=alpha;ctx.textAlign="center";
     ctx.fillStyle="#74652f";
     ctx.font="600 17px Roboto,'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText("Repeating Ground Track Optimization",width*.26,height*.21);
-    ctx.fillText("Symmetric Walker Delta",width*.74,height*.21);
+    const centerX = root => {
+      const world = root.getWorldPosition(new THREE.Vector3());
+      return (world.project(camera).x*.5+.5)*width;
+    };
+    const leftX=centerX(left.root),rightX=centerX(right.root);
+    ctx.fillText("Repeating Ground Track Optimization",leftX,height*.21);
+    ctx.fillText("Symmetric Walker Delta",rightX,height*.21);
     ctx.fillStyle="#666";ctx.font="400 12px Roboto,'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText(`${selected.length} satellites`,width*.26,height*.247);
-    ctx.fillText(`${walker.length} satellites`,width*.74,height*.247);
+    ctx.fillText(`${selected.length} satellites`,leftX,height*.247);
+    ctx.fillText(`${walker.length} satellites`,rightX,height*.247);
     ctx.globalAlpha=1;ctx.textAlign="left";
   }
   function render() {

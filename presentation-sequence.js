@@ -20,11 +20,11 @@ export const defaultTitleConfiguration = {
       subtitle:"", agenda:[], highlight:0, before:"gps-constellation",
       action:"model", enabled:true },
     { id:"established-approach", type:"title",
-      title:"The Established Approach",
-      subtitle:"To Satellite Constellation Optimization",
+      title:"Established Approach",
+      subtitle:"to satellite constellation optimization",
       agenda:[], highlight:0, before:"gps-constellation", enabled:true },
     { id:"our-approach", type:"title", title:"Our Approach",
-      subtitle:"To Space-Based Interceptor Constellation Optimization",
+      subtitle:"to space-based interceptor constellation optimization",
       agenda:[], highlight:0, before:"ground-track", enabled:true },
     { id:"under-the-hood", type:"title", title:"What's Happening Under the Hood?",
       subtitle:"", agenda:[], highlight:0, before:"sbi-optimization", enabled:true }
@@ -32,7 +32,7 @@ export const defaultTitleConfiguration = {
 };
 
 export const paneGroups = {
-  "geographic-input": [[0,1],[2],[3,4,5]],
+  "geographic-input": [[0,2],[3,5]],
   "missile-salvo": [[0,1,2]],
   "threat-scenarios": [[0],[1],[2],[3],[4],[5,6,7],[8]],
   "gps-constellation": [[0,1]],
@@ -41,7 +41,7 @@ export const paneGroups = {
 
 // Milliseconds spent showing each internal phase before the next phase starts.
 export const phaseDurations = {
-  "geographic-input": {0:2850,3:2550,4:3000},
+  "geographic-input": {0:2850,3:2550},
   "gps-constellation": {0:1150},
   "missile-salvo": {0:850,1:1800},
   "threat-scenarios": {5:2100,6:1500},
@@ -79,6 +79,13 @@ export function loadTitleConfiguration() {
         established.title = "The Established Approach";
         established.subtitle = "To Satellite Constellation Optimization";
       }
+      if (established?.title === "The Established Approach")
+        established.title = "Established Approach";
+      if (established?.subtitle === "To Satellite Constellation Optimization")
+        established.subtitle = "to satellite constellation optimization";
+      const ourApproach = saved.slides.find(slide => slide.id === "our-approach");
+      if (ourApproach?.subtitle === "To Space-Based Interceptor Constellation Optimization")
+        ourApproach.subtitle = "to space-based interceptor constellation optimization";
       return saved;
     }
   } catch (error) { console.warn("Presentation titles could not be restored.", error); }

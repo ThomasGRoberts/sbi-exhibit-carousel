@@ -1,0 +1,756 @@
+/* Principal-run controls; globe and map styles remain in style.css. */
+#ui {
+  width: 342px;
+  height: var(--panel-height, min(760px, calc(100vh - 100px)));
+  max-height: max(180px, calc(100vh - 150px));
+}
+#ui .panelFront { padding: 18px 18px 16px; }
+#ui .panelBack { padding: 0; }
+#ui .legacyPanelData[hidden] { display: none !important; }
+
+.panelHeading h1 {
+  margin: 0 0 9px;
+  max-width: 275px;
+  color: #282828;
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+.panelHeading .introText { margin: 0; font-size: 12px; }
+.panelSectionHeading { margin: 0; color: #3c464c; font-size: 12px; font-weight: 750; letter-spacing: .01em; }
+.inputHeading { margin: 0; color: #686e70; font-size: 10.5px; font-weight: 700; line-height: 1.2; }
+.headingUnit { color: #929596; font-weight: 400; }
+
+.threatCharacterization { margin-top: 17px; }
+.threatCharacterization > summary { display: flex; align-items: center; gap: 8px; min-height: 22px; cursor: pointer; list-style: none; }
+.threatCharacterization > summary::-webkit-details-marker { display: none; }
+.threatCharacterization > summary:focus-visible { outline: 2px solid #777; outline-offset: 2px; border-radius: 3px; }
+.threatCompactSummary { display: none; margin-left: auto; color: #777; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.threatCharacterization:not([open]) .threatCompactSummary { display: inline; }
+.threatChevron { display: grid; place-items: center; position: relative; flex: 0 0 18px; width: 18px; height: 18px; margin-left: auto; border: 1px solid #d6d2c9; border-radius: 50%; background: #f8f5eb; }
+.threatChevron::before, .threatChevron::after { content: ""; position: absolute; inset: 0; margin: auto; width: 6px; height: 1px; background: #6d624b; }
+.threatChevron::after { transform: rotate(90deg); transition: transform .2s ease; }
+.threatCharacterization[open] .threatChevron::after { transform: rotate(0); }
+.threatCharacterization[open] .threatChevron { border-color: #b7a56a; }
+.threatCharacterization:not([open]) .threatChevron { background: #fff; }
+.threatCharacterization:not([open]) .threatChevron { margin-left: 0; }
+.scenarioPicker { margin-top: 11px; }
+.scenarioCardGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.scenarioCard {
+  position: relative;
+  height: 83px;
+  overflow: hidden;
+  border: 1px solid #dedede;
+  border-radius: 11px;
+  background: #f8f8f8;
+  box-shadow: 0 1px 2px rgba(0,0,0,.025);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.scenarioCard:hover { transform: translateY(-2px); border-color: #b9b9b9; box-shadow: 0 5px 12px rgba(47,47,47,.08); }
+.scenarioCard[data-selected="true"]:hover { transform: none; }
+.scenarioCard[data-selected="true"] { border-color: #ab8e3c; box-shadow: 0 0 0 1px rgba(171,142,60,.24), 0 4px 12px rgba(47,57,54,.08); }
+.scenarioCardSelect {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.scenarioCardSelect:focus-visible { outline: 2px solid #607d8b; outline-offset: -3px; }
+.scenarioCardMap { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.scenarioCardBackdrop, .scenarioCard[data-selected="true"] .scenarioCardBackdrop { fill: #f8f8f8; }
+.scenarioCardLand { fill: #f1f1f1; stroke: #d2d2d2; stroke-width: .55; vector-effect: non-scaling-stroke; }
+.scenarioCardFocus, .scenarioCard[data-selected="true"] .scenarioCardFocus { fill: #e3e3e3; stroke: #969696; stroke-width: .85; vector-effect: non-scaling-stroke; }
+.scenarioCardName {
+  position: absolute;
+  z-index: 1;
+  left: 9px;
+  bottom: 7px;
+  color: #444;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 2px #f8f8f8, 0 -1px 2px #f8f8f8;
+  pointer-events: none;
+}
+.scenarioCard[data-selected="true"] .scenarioCardName { color: #303030; }
+.scenarioCardArrow { display: none; margin-left: 2px; font-size: 12px; font-weight: 650; transition: transform .2s ease; }
+.scenarioCard[data-selected="true"] .scenarioCardArrow { display: inline-block; }
+.scenarioCard[data-selected="true"]:hover .scenarioCardArrow { transform: translateX(3px); }
+.scenarioCardSiteHalo {
+  fill: none;
+  stroke: #b88b13;
+  stroke-width: 1.1;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.scenarioCardSite { fill: #b88b13; stroke: none; }
+.scenarioCard[data-selected="false"] .scenarioCardSiteHalo,
+.scenarioCard[data-selected="false"] .scenarioCardSite { display: none; }
+.scenarioCard[data-selected="true"] .scenarioCardSiteHalo { animation: scenarioCardPulse 3.8s ease-out infinite; }
+@keyframes scenarioCardPulse {
+  0%, 60%, 100% { transform: scale(.6); opacity: 0; }
+  69% { opacity: .62; }
+  94% { transform: scale(2.3); opacity: 0; }
+}
+.principalControls { margin-top: 14px; }
+.discreteOptions {
+  display: grid;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #dce3e6;
+  border-radius: 9px;
+  background: #f2f5f6;
+}
+.discreteOptions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  height: 31px;
+  padding: 0 3px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #65727a;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.choiceText { display: inline-flex; align-items: baseline; gap: 3px; line-height: 1; }
+.choiceValue { font-size: 12px; font-weight: 700; line-height: 1; }
+.choiceUnit { color: #8a959b; font-size: 9px; font-weight: 400; line-height: 1; }
+.discreteOptions button:hover { color: #303c42; background: rgba(255,255,255,.7); }
+.discreteOptions button[aria-pressed="true"] { color: #263842; border-color: #b7c7ce; background: #fff; box-shadow: 0 1px 3px rgba(51,72,82,.07); }
+.discreteOptions button:disabled { opacity: .35; cursor: not-allowed; }
+.discreteOptions button:focus-visible { outline: 2px solid #607d8b; outline-offset: 1px; }
+.salvoOptions { margin-top: 7px; }
+.salvoOptions button:only-child { cursor: default; }
+
+.advancedOptions { margin-top: 19px; border-top: 1px solid #e2e8eb; }
+.advancedOptions summary { display: flex; align-items: center; justify-content: space-between; padding: 11px 0 3px; color: #4d5b62; font-size: 11px; font-weight: 700; cursor: pointer; list-style: none; }
+.advancedOptions summary::-webkit-details-marker { display: none; }
+.advancedOptions summary:focus-visible { outline: 2px solid #607d8b; outline-offset: 2px; }
+.advancedChevron { display: grid; place-items: center; position: relative; flex: 0 0 18px; width: 18px; height: 18px; margin-left: auto; border: 1px solid #d6d2c9; border-radius: 50%; transition: background .2s ease, border-color .2s ease; }
+.advancedChevron::before, .advancedChevron::after { content: ""; position: absolute; inset: 0; margin: auto; width: 6px; height: 1px; background: #6d624b; }
+.advancedChevron::after { transform: rotate(90deg); transition: transform .22s ease; }
+.advancedOptions[open] .advancedChevron { border-color: #b7a56a; background: #f8f5eb; }
+.advancedOptions[open] .advancedChevron::after { transform: rotate(0); }
+.advancedFields { padding: 2px 0 6px; }
+.advancedField { margin-top: 9px; }
+.advancedFieldLabel { margin-bottom: 5px; color: #58666d; font-size: 10px; font-weight: 650; }
+.advancedFieldLabel span { color: #8d999f; font-weight: 400; }
+
+.principalResult { margin-top: 21px; padding: 0 2px 7px; border: 0; background: transparent; }
+.principalResult .statIntro { margin: 0 0 12px; color: #5e6b72; font-size: 12px; line-height: 1.35; }
+.resultMain { display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
+.resultMain strong { color: #202b31; font-size: 52px; font-weight: 800; line-height: .98; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+.resultMain > span { color: #4b555b; font-size: 14px; font-weight: 650; line-height: 1.25; white-space: nowrap; }
+.resultMain .resultPlaneLine { margin-top: 2px; color: #71777a; font-size: 11.5px; font-weight: 400; font-style: italic; }
+.panelError { margin: 8px 0 0; color: #8c4a32; font-size: 10px; }
+.panelError[hidden] { display: none; }
+.principalResultStatus { margin: 9px 0 0; color: #6b7073; font-size: 10px; line-height: 1.35; text-align: center; }
+.principalResultStatus[hidden] { display: none; }
+
+#ui #scenarioBackBtn { width: auto; height: 28px; gap: 5px; padding: 0 2px; color: #777; }
+#scenarioBackBtn span { font-size: 11px; white-space: nowrap; }
+
+@media (max-width: 520px) {
+  #ui, #ui.is-detail-open { width: min(342px, calc(100vw - 50px)); }
+  #ui .panelFront { padding: 18px 14px 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scenarioCard, .scenarioCardArrow, .advancedChevron, .discreteOptions button { transition: none; }
+  .scenarioCard:hover { transform: none; }
+  .scenarioCard[data-selected="true"] .scenarioCardSiteHalo { animation: none; }
+  #mapTransitionCanvas { transition: none; }
+}
+
+.legendContainer { left: 12px; bottom: 62px; width: min(342px, calc(100vw - 24px)); min-height: 38px; padding: 7px 16px; border: 1px solid #e1e1e1; border-radius: 9px; background: rgba(255,255,255,.91); box-shadow: 0 3px 12px rgba(0,0,0,.045); }
+.legendContainer .legendList { display: flex; align-items: center; gap: 22px; color: #5c5c5c; font-size: 11px; }
+.legendContainer .legendRow { gap: 7px; white-space: nowrap; }
+.playbackDock {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 21;
+  width: min(342px, calc(100vw - 36px));
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: left .28s ease;
+}
+.playbackDock .playbackRow { grid-template-columns: 30px minmax(0,1fr) 35px 30px 30px; gap: 6px; }
+.playbackDock .miniControl { border: 0; background: transparent; }
+.playbackDock .playPauseMini { border: 0; background: transparent; }
+#legend2D { padding: 0; background: transparent; }
+body.uiCollapsed .playbackDock { left: 18px; }
+body.uiCollapsed .legendContainer { left: 12px; }
+@media (max-width: 800px) {
+  .legendContainer { left: 12px; bottom: 62px; }
+  .playbackDock { left: 18px; }
+}
+
+#mapTransitionCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .52s ease, transform .52s cubic-bezier(.22,.65,.25,1);
+}
+#map2dCanvas { background: #f7f7f7; }
+#cameraControls .cameraBtn svg { display: block; width: 21px; height: 21px; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#cameraControls { align-items: flex-end; }
+#viewToggleBtn { order: 3; display: flex; align-items: center; justify-content: center; gap: 5px; width: 94px; padding: 0 9px; border-radius: 23px; color: #454545; font-size: 10px; font-weight: 650; white-space: nowrap; }
+#cameraControls #viewToggleBtn svg { flex: 0 0 19px; width: 19px; height: 19px; margin: 0; }
+
+/* Native disclosure cards retain their selections while scrolling. */
+.threatCharacterization { padding: 11px 11px 12px; border: 1px solid #dedede; border-radius: 12px; background: rgba(249,249,249,.74); transition: padding .38s ease, background .38s ease; }
+.threatCharacterization:not([open]) { padding-top: 9px; padding-bottom: 9px; background: rgba(248,248,248,.92); }
+.threatCharacterization .threatContents { overflow: hidden; }
+.threatCharacterization:not([open]) .threatCompactSummary { display: inline; }
+.threatCharacterization .threatSummaryRow { gap: 6px; }
+.threatCharacterization:not([open]) .panelSectionHeading { max-width: 100px; line-height: 1.15; }
+.threatCharacterization:not([open]) .threatCompactSummary { font-size: 9.5px; }
+.principalResult { transition: margin .42s ease, padding .42s ease; }
+.resultMain strong { transition: font-size .42s ease; }
+
+/* Satellite labels remain bare on the globe; map controls share the panel surface. */
+.lowerControls { position: fixed; left: 12px; bottom: 18px; z-index: 20; display: flex; flex-direction: column; gap: 14px; width: min(342px, calc(100vw - 24px)); box-sizing: border-box; transition: transform .65s ease, opacity .65s ease; }
+.lowerControls .legendContainer { position: static; order: 0; flex-direction: column; align-items: stretch; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.lowerControls .legendList { gap: 14px; font-size: 10.5px; }
+.lowerControls .legendRow { gap: 6px; }
+.lowerControls .playbackDock { position: static; order: 1; width: 100%; padding: 0 6px; }
+body.mapMode2D .lowerControls { gap: 10px; padding: 12px 15px 11px; border: 1px solid #ddd; border-radius: 16px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(0,0,0,.10); backdrop-filter: blur(10px); }
+body.mapMode2D .lowerControls #legend2D { margin-top: 8px; }
+body.mapMode2D .lowerControls .playbackDock { padding: 0; }
+body.uiCollapsed .lowerControls { left: 12px; }
+
+#cameraControls #viewToggleBtn { width: 46px; padding: 0; border-radius: 50%; }
+#cameraControls #viewToggleBtn svg { flex-basis: 21px; width: 21px; height: 21px; }
+
+.scenarioCard[data-selected="true"]:hover .scenarioCardSiteHalo,
+.scenarioCard[data-selected="true"]:focus-within .scenarioCardSiteHalo { animation: scenarioCardHoverPulse 1.05s ease-out infinite; }
+@keyframes scenarioCardHoverPulse {
+  0% { transform: scale(.55); opacity: .9; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+#mapSiteLayer { position: fixed; inset: 0; display: none; z-index: 2; pointer-events: none; }
+.siteMarker2d { position: absolute; width: 15px; height: 15px; padding: 0; border: 2px solid white; border-radius: 50%; background: #b88b13; box-shadow: 0 0 0 1px #8b6d14, 0 2px 7px rgba(0,0,0,.22); transform: translate(-50%,-50%); pointer-events: auto; cursor: pointer; }
+.siteMarker2d::before { content: ""; position: absolute; inset: -5px; border: 2px solid #b88b13; border-radius: 50%; animation: siteMarkerPulse 2.6s ease-out infinite; }
+@keyframes siteMarkerPulse { 0% { transform: scale(.5); opacity: .8; } 75%,100% { transform: scale(2.4); opacity: 0; } }
+#siteTooltip { position: fixed; z-index: 40; max-width: 260px; padding: 7px 10px; border: 1px solid #d8d8d8; border-radius: 7px; background: rgba(255,255,255,.97); color: #333; font-size: 11px; font-weight: 650; box-shadow: 0 5px 18px rgba(0,0,0,.12); pointer-events: none; }
+#siteTooltip[hidden] { display: none; }
+
+body.idleMode #ui { transform: translateX(calc(-100% - 20px)) scale(.96); opacity: .2; pointer-events: none; }
+body.idleMode .lowerControls { transform: translateX(calc(-100% - 20px)) scale(.96); opacity: .15; pointer-events: none; }
+body.idleMode #cameraControls, body.idleMode #gtLogo { transform: translateX(120%); opacity: .12; pointer-events: none; }
+#cameraControls, #gtLogo { transition: transform .65s ease, opacity .65s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .threatCharacterization, .principalResult, .resultMain strong, .lowerControls, #cameraControls, #gtLogo { transition: none; }
+  .scenarioCard[data-selected="true"]:hover .scenarioCardSiteHalo,
+  .scenarioCard[data-selected="true"]:focus-within .scenarioCardSiteHalo,
+  .siteMarker2d::before { animation: none; }
+}
+
+.glossaryTrigger { border-bottom: 1px dotted #8b8b8b; cursor: help; text-underline-offset: 2px; }
+.glossaryTrigger:focus-visible { outline: 2px solid #8b773c; outline-offset: 2px; border-radius: 2px; }
+.glossaryPopover {
+  position: fixed;
+  z-index: 50;
+  width: min(310px, calc(100vw - 20px));
+  box-sizing: border-box;
+  padding: 11px 13px 10px;
+  border: 1px solid #d8d8d8;
+  border-radius: 9px;
+  background: #fff;
+  color: #333;
+  box-shadow: 0 10px 28px rgba(0,0,0,.14);
+  font-size: 12px;
+  line-height: 1.42;
+  font-style: normal;
+}
+.glossaryPopover strong { display: block; font-size: 12px; font-weight: 700; }
+.glossaryPopover p { margin: 6px 0 7px; }
+.glossarySources { color: #686868; font-size: 10.5px; }
+.glossarySources a { color: #777; text-decoration: none; }
+.glossarySources a:hover, .glossarySources a:focus-visible { color: #555; text-decoration: none; }
+
+/* Result-first instrument panel with reliable native disclosures and scrolling. */
+#ui .panelFront,
+#ui.is-detail-open .panelFront { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #c6c6c6 transparent; }
+#ui .panelFront::-webkit-scrollbar { width: 7px; }
+#ui .panelFront::-webkit-scrollbar-thumb { background: #c6c6c6; border: 2px solid transparent; border-radius: 8px; background-clip: padding-box; }
+.principalResult { margin-top: 17px; padding: 0 2px 17px; border-bottom: 1px solid #e2e2e2; }
+.principalResult .statIntro { margin-bottom: 11px; }
+.threatCharacterization { margin-top: 15px; }
+.advancedOptions { margin-top: 14px; padding: 11px 11px 12px; border: 1px solid #dedede; border-radius: 12px; background: rgba(249,249,249,.74); }
+.advancedOptions summary { padding: 0; min-height: 22px; }
+.advancedFields { padding-top: 6px; }
+.threatChevron, .advancedChevron { display: block; flex: 0 0 14px; width: 14px; height: 14px; margin-left: auto; border: 0; border-radius: 0; background: none; transform: rotate(0deg); transition: transform .2s ease; }
+.threatChevron::before, .advancedChevron::before { content: ""; position: absolute; top: 4px; left: 2px; inset: auto; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #716a5b; background: none; }
+.threatChevron::after, .advancedChevron::after { content: none; }
+.threatCharacterization[open] .threatChevron,
+.advancedOptions[open] .advancedChevron { transform: rotate(180deg); border: 0; background: none; }
+.threatCharacterization[open] .threatChevron::after,
+.advancedOptions[open] .advancedChevron::after { content: none; }
+.threatCharacterization:not([open]) .threatCompactSummary { display: inline; }
+
+.lowerControls, body.uiCollapsed .lowerControls { left: 18px; width: min(342px, calc(100vw - 36px)); }
+.lowerControls .legendList { justify-content: space-between; gap: 16px; padding: 0 3px; }
+.lowerControls .playbackDock { padding: 0; }
+body.mapMode2D #legend3D { display: none !important; }
+body.mapMode2D .lowerControls #legend2D { margin-top: 0; }
+body.mapMode2D .lowerControls { padding: 12px 15px 11px; }
+
+.siteMarker2d[data-region="north-korea"] { width: 12px; height: 12px; background: #292929; box-shadow: 0 0 0 1px #292929, 0 2px 5px rgba(0,0,0,.25); }
+.siteMarker2d[data-region="north-korea"]::before { inset: -5px; border-color: #252525; }
+
+@media (prefers-reduced-motion: reduce) {
+  .threatChevron, .advancedChevron { transition: none; }
+}
+
+/* The controls and result share one compact, scrollable column. */
+.panelSectionHeading, .advancedOptions summary .advancedHeading { font-size: 11px; font-weight: 700; }
+.scenarioCard { height: 73px; }
+.threatCharacterization > summary,
+.advancedOptions > summary { display: grid; grid-template-columns: minmax(0, 1fr) 12px; column-gap: 8px; align-items: center; }
+.threatChevron, .advancedChevron,
+.threatCharacterization[open] .threatChevron,
+.advancedOptions[open] .advancedChevron { position: relative; top: -1px; display: block; grid-column: 2; grid-row: 1; width: 7px; height: 7px; margin: 0 2px 0 0; border: 0; border-right: 1.5px solid #6d6d6d; border-bottom: 1.5px solid #6d6d6d; border-radius: 0; background: none; transform: rotate(45deg); }
+.threatCharacterization[open] .threatChevron,
+.advancedOptions[open] .advancedChevron { top: 2px; transform: rotate(225deg); }
+.threatChevron::before, .threatChevron::after,
+.advancedChevron::before, .advancedChevron::after { content: none; }
+.threatCompactSummary, .advancedCompactSummary { display: none; grid-column: 1 / -1; grid-row: 2; margin: 4px 0 0; color: #777; font-size: 9.5px; font-weight: 500; line-height: 1.35; white-space: normal; }
+.threatCharacterization:not([open]) .threatCompactSummary,
+.advancedOptions:not([open]) .advancedCompactSummary { display: block; }
+.principalResult { margin-top: 15px; padding: 15px 2px 5px; border-top: 1px solid #e2e2e2; border-bottom: 0; }
+
+/* The 3D legend returns to the same card dimensions as the main panel. */
+body:not(.mapMode2D) .lowerControls .legendContainer { box-sizing: border-box; width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 16px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(0,0,0,.10); backdrop-filter: blur(10px); }
+body:not(.mapMode2D) .lowerControls .legendList { justify-content: space-between; gap: 8px; padding: 0; font-size: 10px; }
+.legendDot { padding: 0; cursor: pointer; }
+.legendDot:focus-visible { outline: 2px solid #494949; outline-offset: 3px; }
+
+body.idleMode #ui, body.idleMode .lowerControls, body.idleMode #cameraControls,
+body.idleMode #gtLogo { opacity: 0; visibility: hidden; }
+body.ambientPresentation #ui, body.ambientPresentation .lowerControls,
+body.ambientPresentation #cameraControls, body.ambientPresentation #gtLogo,
+body.ambientPresentation #siteTooltip { display: none !important; }
+
+#mapIntroCanvas { position: fixed; inset: 0; display: none; width: 100%; height: 100%; pointer-events: none; }
+.siteMarker2d, .siteMarker2d[data-region="north-korea"] { width: 10px; height: 10px; padding: 0; border: 0; background: #292929; box-shadow: 0 0 0 1px #292929, 0 2px 5px rgba(0,0,0,.25); cursor: pointer; }
+.siteMarker2d::before, .siteMarker2d[data-region="north-korea"]::before { inset: -5px; border-color: #292929; }
+
+/* Globe-derived neutrals shared by the panel, controls, chart, and playback card. */
+:root {
+  --sbi-white: #ffffff;
+  --sbi-globe: #f7f7f7;
+  --sbi-land: #e3e3e3;
+  --sbi-border: #d2d2d2;
+  --sbi-line: #a8a8a8;
+  --sbi-muted: #777777;
+  --sbi-text: #292929;
+  --sbi-gold: #b88b13;
+  --sbi-surface: rgba(255,255,255,.94);
+}
+#ui .panelFace, .lowerControls { border: 1px solid var(--sbi-border); border-radius: 16px; background: var(--sbi-surface); box-shadow: 0 12px 35px rgba(0,0,0,.10); }
+.panelHeading h1, .resultMain strong, .scenarioCard[data-selected="true"] .scenarioCardName { color: var(--sbi-text); }
+.panelSectionHeading, .advancedOptions summary .advancedHeading, .advancedFieldLabel { color: #444444; }
+.inputHeading, .headingUnit, .principalResult .statIntro, .resultMain > span, .threatCompactSummary, .advancedCompactSummary { color: var(--sbi-muted); }
+.threatCharacterization, .advancedOptions, .threatCharacterization:not([open]) { border-color: var(--sbi-border); background: var(--sbi-globe); }
+.scenarioCard, .scenarioCardBackdrop, .scenarioCard[data-selected="true"] .scenarioCardBackdrop { border-color: var(--sbi-border); background: var(--sbi-globe); fill: var(--sbi-globe); }
+.scenarioCardLand { fill: #f1f1f1; stroke: var(--sbi-border); }
+.scenarioCardFocus, .scenarioCard[data-selected="true"] .scenarioCardFocus { fill: var(--sbi-land); stroke: var(--sbi-line); }
+.scenarioCardName, .discreteOptions button, .discreteOptions button[aria-pressed="true"] { color: #444444; }
+.scenarioCard[data-selected="true"] { border-color: var(--sbi-gold); box-shadow: 0 0 0 1px rgba(184,139,19,.18), 0 4px 12px rgba(0,0,0,.08); }
+.scenarioCardSelect:focus-visible, .discreteOptions button:focus-visible, .advancedOptions summary:focus-visible { outline-color: var(--sbi-muted); }
+.discreteOptions { border-color: var(--sbi-border); background: #f1f1f1; }
+.discreteOptions button[aria-pressed="true"] { border-color: var(--sbi-line); background: var(--sbi-white); box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.discreteOptions button:hover { color: var(--sbi-text); background: var(--sbi-white); }
+.choiceUnit, .advancedFieldLabel span { color: var(--sbi-muted); }
+.threatCharacterization, .principalResult, .advancedOptions { border-top-color: var(--sbi-border); border-bottom-color: var(--sbi-border); }
+
+.coverageChartSection { margin-top: 11px; padding: 10px 2px 13px; border-top: 1px solid var(--sbi-border); border-bottom: 1px solid var(--sbi-border); }
+.coverageChartSection #coverageChart { margin-top: 5px; height: 142px; }
+
+.lowerControls, body.mapMode2D .lowerControls, body:not(.mapMode2D) .lowerControls { left: 18px; width: min(342px, calc(100vw - 36px)); gap: 9px; padding: 11px 14px 10px; border: 1px solid var(--sbi-border); border-radius: 16px; background: var(--sbi-surface); }
+body:not(.mapMode2D) .lowerControls .legendContainer { width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.lowerControls .playbackDock { padding: 0; }
+body:not(.mapMode2D) .lowerControls .legendList { justify-content: space-between; gap: 6px; padding: 0; font-size: 9px; }
+body:not(.mapMode2D) .lowerControls .legendRow { gap: 4px; }
+body.mapMode2D .lowerControls #legend2D { margin-top: 0; }
+body.mapIntro .siteMarker2d { width: 16px; height: 16px; border: 0; background: #bd8b08; box-shadow: 0 0 0 1px #8c6705; transition: width .5s ease, height .5s ease, background .5s ease, opacity .2s ease; }
+body.mapIntro .siteMarker2d::before { inset: -7px; border: 2px solid #bb8a06; animation: siteMarkerPulse 1.45s ease-out infinite; }
+body.mapIntroSettling .siteMarker2d { width: 10px; height: 10px; background: #292929; box-shadow: 0 0 0 1px #292929; }
+body.mapIntroSettling .siteMarker2d::before { border-color: #292929; }
+
+/* Matching disclosures, readable result and compact chart. */
+#ui { max-height: max(180px, calc(100vh - 140px)); }
+.threatCharacterization > summary, .advancedOptions > summary { grid-template-columns: minmax(0, 1fr) 18px; }
+.threatCharacterization .panelSectionHeading, .advancedOptions .advancedHeading { white-space: nowrap; }
+.threatCharacterization:not([open]) .panelSectionHeading { max-width: none; line-height: 1.2; }
+.threatCharacterization:not([open]) .threatCompactSummary { font-size: 10.5px; }
+.advancedOptions { margin-top: 8px; }
+.threatChevron, .advancedChevron,
+.threatCharacterization[open] .threatChevron,
+.advancedOptions[open] .advancedChevron {
+  top: 0; width: 18px; height: 20px; margin: 0;
+  border: 0; transform: none;
+}
+.threatChevron::before, .advancedChevron::before,
+.threatCharacterization[open] .threatChevron::before,
+.advancedOptions[open] .advancedChevron::before {
+  content: "‹"; position: absolute; inset: 0; width: 18px; height: 20px;
+  color: #999999; font-family: inherit; font-size: 17px;
+  font-weight: 400; line-height: 20px; text-align: center;
+  transform: rotate(-90deg);
+}
+.threatCharacterization[open] .threatChevron::before,
+.advancedOptions[open] .advancedChevron::before { transform: rotate(90deg); }
+.resultMain #resultHeading { color: #000000; font-weight: 700; }
+.resultMain #principalSatelliteStat { display: flex; align-items: center; justify-content: center; min-height: 51px; }
+.resultMain[data-state="configuring"] #principalSatelliteStat {
+  color: var(--sbi-gold); font-size: 36px; letter-spacing: .16em;
+  animation: constellationConfigPulse 1.25s ease-in-out infinite;
+}
+.resultMain[data-state="configuring"] .resultPlaneLine { visibility: hidden; }
+@keyframes constellationConfigPulse {
+  0%, 100% { opacity: .4; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resultMain[data-state="configuring"] #principalSatelliteStat { animation: none; }
+}
+.coverageChartSection { margin-top: 8px; padding: 0 2px 10px; border-top: 0; }
+.coverageChartSection #coverageChart { margin-top: 0; }
+
+/* Identical playback card geometry in both view modes. */
+.lowerControls, body.mapMode2D .lowerControls,
+body:not(.mapMode2D) .lowerControls {
+  height: 92px; gap: 0; justify-content: space-between;
+  padding: 13px 15px 11px;
+}
+body:not(.mapMode2D) .lowerControls .legendList {
+  justify-content: flex-start; gap: 13px; font-size: 12px;
+}
+body:not(.mapMode2D) .lowerControls .legendRow { gap: 6px; white-space: nowrap; }
+
+/* Regional markers settle into static dark dots; global coverage has no sites. */
+.siteMarker2d::before, .siteMarker2d[data-region="north-korea"]::before { content: none; animation: none; }
+body.mapIntro .siteMarker2d::before { content: ""; }
+body.mapIntroSettling .siteMarker2d::before { content: none; animation: none; }
+
+/* Use the same text chevron as the side panel toggle. */
+.threatChevron, .advancedChevron,
+.threatCharacterization[open] .threatChevron,
+.advancedOptions[open] .advancedChevron {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 22px; margin: 0;
+  border: 0; background: transparent; transform: none;
+}
+.threatChevron::before, .threatChevron::after,
+.advancedChevron::before, .advancedChevron::after,
+.threatCharacterization[open] .threatChevron::before,
+.advancedOptions[open] .advancedChevron::before { content: none !important; border: 0 !important; }
+.disclosureGlyph {
+  display: block; color: #999999; font-size: 17px; font-weight: 400;
+  line-height: 1; transform: rotate(-90deg);
+  transition: transform .62s cubic-bezier(.2,.72,.2,1);
+}
+.threatCharacterization[open] .disclosureGlyph,
+.advancedOptions[open] .disclosureGlyph { transform: rotate(90deg); }
+.threatCharacterization, .advancedOptions,
+.threatCharacterization:not([open]) { background: #ffffff; }
+.coverageChartSection { border-bottom: 0; }
+
+/* The 3D card follows its contents; the 2D gradient card keeps its own height. */
+body:not(.mapMode2D) .lowerControls {
+  height: auto; gap: 8px; justify-content: flex-start;
+  padding: 10px 15px 9px;
+}
+body:not(.mapMode2D) #ui { max-height: max(180px, calc(100vh - 114px)); }
+
+/* Gold introduction and relaxed dark-gray pulses in the regional map. */
+.siteMarker2d::before, .siteMarker2d[data-region="north-korea"]::before {
+  content: ""; border-color: #4a4a4a;
+  animation: siteMarkerPulse var(--site-pulse-dark-duration, 2600ms) ease-out infinite;
+  transition: border-color .6s ease;
+}
+body.mapIntroSettling .siteMarker2d::before,
+body.mapIntroSettling .siteMarker2d[data-region="north-korea"]::before {
+  content: ""; border-color: #4a4a4a;
+  animation: siteMarkerPulse var(--site-pulse-dark-duration, 2600ms) ease-out infinite;
+}
+
+/* Clean 2D site cores; the separate pulse ring remains visible. */
+.siteMarker2d, .siteMarker2d[data-region="north-korea"],
+body.mapIntro .siteMarker2d, body.mapIntroSettling .siteMarker2d {
+  width: 11px; height: 11px; border: 0; box-shadow: 0 1px 3px rgba(0,0,0,.16);
+}
+
+.glossaryTrigger { cursor: pointer; }
+
+#ui.is-detail-open { width: 342px; }
+@media (max-width: 520px) {
+  #ui.is-detail-open { width: min(342px, calc(100vw - 50px)); }
+}
+
+.lowerControls, body.mapMode2D .lowerControls, body:not(.mapMode2D) .lowerControls {
+  padding-left: 18px; padding-right: 18px;
+}
+body:not(.mapMode2D) #legend3D {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 8px; row-gap: 8px; font-size: 10.5px; line-height: 1.2;
+}
+#legendSiteRow[hidden] { display: none !important; }
+body:not(.mapMode2D) .lowerControls .legendRow { gap: 6px; }
+.legendSiteDot {
+  position: relative; display: inline-block; box-sizing: border-box;
+  flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%;
+  background: #4a4a4a;
+}
+.legendSiteDot::after {
+  content: ""; position: absolute; inset: -2px; border: 1px solid #4a4a4a;
+  border-radius: 50%; animation: legendSitePulse var(--site-pulse-duration, 2600ms) ease-out infinite;
+}
+#legendSiteRow[data-tone="gold"] .legendSiteDot { background: #b88b13; }
+#legendSiteRow[data-tone="gold"] .legendSiteDot::after { border-color: #b88b13; }
+@keyframes legendSitePulse {
+  0% { transform: scale(.8); opacity: .62; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.playbackDock .playbackRow {
+  grid-template-columns: 24px 24px 24px minmax(0, 1fr) 42px;
+  gap: 0;
+}
+.playbackDock .miniControl, .playbackDock .speedMini,
+.playbackDock .playPauseMini { box-sizing: border-box; width: 24px; min-width: 24px; height: 26px; margin: 0; padding: 0; justify-self: center; }
+.playbackDock #timelineSlider { min-width: 0; width: calc(100% - 21px); margin: 2px 10px 0 11px; transform: translateY(1px); }
+.playbackDock #timelineTime { margin-left: 6px; }
+.playbackDock #timelineTime { text-align: right; }
+
+.siteMarker2d, .siteMarker2d[data-region="north-korea"],
+body.mapIntroSettling .siteMarker2d { background: #4a4a4a; }
+.siteMarker2d::before, .siteMarker2d[data-region="north-korea"]::before,
+body.mapIntroSettling .siteMarker2d::before { border-color: #4a4a4a; }
+body.mapIntro .siteMarker2d { background: #bd8b08; }
+body.mapIntro .siteMarker2d::before {
+  border-color: #bb8a06;
+  animation-duration: var(--site-pulse-gold-duration, 1150ms);
+}
+body.mapIntro.mapIntroSettling .siteMarker2d { background: #4a4a4a; }
+body.mapIntro.mapIntroSettling .siteMarker2d::before {
+  border-color: #4a4a4a;
+  animation-duration: var(--site-pulse-dark-duration, 2600ms);
+}
+
+#siteTooltip { pointer-events: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+#siteTooltip[hidden] { display: none; }
+#siteTooltipLearnMore {
+  padding: 0; border: 0; background: transparent; color: #775d19;
+  font-family: inherit; font-size: 10px; font-weight: 600; line-height: 1.25; cursor: pointer;
+}
+#siteTooltipLearnMore span { display: inline-block; transition: transform .18s ease; }
+#siteTooltipLearnMore:hover span, #siteTooltipLearnMore:focus-visible span { transform: translateX(3px); }
+#siteTooltipLearnMore:focus-visible { outline: 2px solid #8b773c; outline-offset: 2px; }
+body:not(.mapMode2D) .lowerControls {
+  height: 92px; gap: 0; justify-content: space-between;
+  padding: 13px 18px 11px;
+}
+body:not(.mapMode2D) #ui { max-height: max(180px, calc(100vh - 140px)); }
+
+/* Compact section summaries with understated line icons. */
+.threatCharacterization, .advancedOptions { padding: 9px 11px 10px; }
+.threatCharacterization:not([open]), .advancedOptions:not([open]) { padding-top: 8px; padding-bottom: 8px; }
+.threatCharacterization > summary, .advancedOptions > summary { min-height: 19px; row-gap: 0; }
+.threatCharacterization > summary.threatSummaryRow { row-gap: 0; column-gap: 6px; }
+.threatCompactSummary, .advancedCompactSummary { margin-top: 1px; line-height: 1.2; }
+.panelSectionHeading, .advancedHeading { display: inline-flex; align-items: center; gap: 6px; }
+.sectionHeadingIcon { width: 13px; height: 13px; flex: 0 0 13px; fill: none; stroke: #777; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
+#threatHeading .sectionHeadingIcon { transform: rotate(45deg); }
+.advancedFields { padding-top: 5px; }
+
+/* The geographic pulse is flat; the ring supplies its motion. */
+body.mapIntro .siteMarker2d { box-shadow: none; }
+
+/* Gold is confined to one edge and a faint background motif. */
+.glossaryPopover { overflow: hidden; border-color: #e2d9b8; border-top: 2px solid #b9943d; }
+.glossaryPopover > strong, .glossaryPopover > p, .glossaryPopover > .glossarySources { position: relative; z-index: 1; }
+.glossarySources .espl-news-external svg { display: inline-block; width: .9em; height: .9em; margin-left: .22em; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.08em; opacity: .82; }
+.glossarySources .espl-news-external__box { transition: opacity 220ms ease, transform 220ms ease; transform-origin: 8px 9px; }
+.glossarySources .espl-news-external__arrow { transition: transform 220ms cubic-bezier(.22,1,.36,1); }
+.glossarySources .espl-news-external:hover .espl-news-external__arrow,
+.glossarySources .espl-news-external:focus-visible .espl-news-external__arrow { transform: translate(2.4px,-2.4px); }
+.glossarySources .espl-news-external:hover .espl-news-external__box,
+.glossarySources .espl-news-external:focus-visible .espl-news-external__box { opacity: .58; transform: scale(.96); }
+.glossarySources .espl-news-external:focus-visible { outline: 1.5px solid #9a7413; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .glossarySources .espl-news-external__box, .glossarySources .espl-news-external__arrow { transition: none; } }
+
+/* Both collapsed configuration cards use the same two-row header geometry. */
+.threatCharacterization:not([open]), .advancedOptions:not([open]) {
+  box-sizing: border-box; height: 53px; padding: 8px 11px;
+}
+.threatCharacterization:not([open]) > summary,
+.advancedOptions:not([open]) > summary {
+  height: 100%; min-height: 0; grid-template-rows: 18px 13px;
+  row-gap: 2px; align-content: center;
+}
+.threatCharacterization:not([open]) .panelSectionHeading,
+.advancedOptions:not([open]) .advancedHeading {
+  height: 18px; line-height: 18px;
+}
+.threatCharacterization:not([open]) .threatCompactSummary,
+.advancedOptions:not([open]) .advancedCompactSummary {
+  box-sizing: border-box; min-width: 0; height: 13px; margin: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px; line-height: 13px;
+}
+
+/* Satellite statuses read as a single list; the site entry is always last. */
+body:not(.mapMode2D) #legend3D {
+  grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 0; row-gap: 5px;
+  justify-content: start; align-content: start;
+}
+body:not(.mapMode2D) #legend3D .legendRow { justify-content: flex-start; }
+body:not(.mapMode2D) #legend3D .legendRow:nth-child(1) { grid-column: 1; grid-row: 1; }
+body:not(.mapMode2D) #legend3D .legendRow:nth-child(2) { grid-column: 1; grid-row: 2; }
+body:not(.mapMode2D) #legendSiteRow { grid-column: 2; grid-row: 1; align-self: center; margin-left: -3px; }
+body:not(.mapMode2D) #legend3D:has(#legendSiteRow[hidden]) { grid-template-columns: minmax(0, 1fr); }
+
+/* Coverage controls the gold-to-gray blend, rather than a timed color swap. */
+body.mapIntro.mapIntroSettling .siteMarker2d {
+  background: var(--map-site-tone-color, #4a4a4a);
+  transition: width .5s ease, height .5s ease, opacity .2s ease;
+}
+body.mapIntro.mapIntroSettling .siteMarker2d::before {
+  border-color: var(--map-site-tone-color, #4a4a4a);
+  animation-duration: var(--map-site-pulse-duration, 2600ms);
+}
+
+@keyframes siteMarkerPulse {
+  0% { transform: scale(.8); opacity: .6; }
+  75%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Comment log rows 10, 12, 13, 15, 16, 18, 19. */
+body.mapIntro .siteMarker2d::before {
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.siteMarker2d[data-dark-blip="true"]::before {
+  content: "";
+  border-color: #4a4a4a;
+  animation: siteMarkerPulse var(--site-pulse-dark-duration, 2600ms) ease-out 1 forwards;
+}
+.legendSiteDot::after { animation-iteration-count: 1; animation-fill-mode: forwards; }
+.scenarioMapLocator.is-selected { animation: none; opacity: 0; }
+.scenarioMapMarker.is-selected .scenarioMapMarkerPulse {
+  animation: scenarioSelectedSiteBlip 1.05s ease-out 1 both;
+}
+@keyframes scenarioSelectedSiteBlip {
+  0% { opacity: .75; transform: scale(.55); }
+  100% { opacity: 0; transform: scale(2); }
+}
+.scenarioCardInfo {
+  position: absolute; top: 6px; right: 7px; z-index: 1;
+  display: grid; place-items: center; width: 16px; height: 16px;
+  border: 1px solid currentColor; border-radius: 50%;
+  color: #716c5e; background: rgba(255,255,255,.82);
+  font-size: 11px; font-weight: 700; font-style: normal; line-height: 1;
+  opacity: 0; transform: scale(.85); pointer-events: none;
+  transition: opacity .18s ease, transform .2s ease, box-shadow .2s ease;
+}
+.scenarioCard[data-selected="true"] .scenarioCardInfo { opacity: .8; transform: scale(1); }
+.scenarioCard[data-selected="true"]:hover .scenarioCardInfo,
+.scenarioCard[data-selected="true"]:focus-within .scenarioCardInfo {
+  opacity: 1; transform: scale(1.15); box-shadow: 0 0 0 3px rgba(184,139,19,.17);
+}
+.advancedOptions:not([open]) { height: auto; min-height: 53px; }
+.advancedOptions:not([open]) > summary { height: auto; min-height: 37px; grid-template-rows: 18px auto; row-gap: 3px; }
+.advancedOptions:not([open]) .advancedCompactSummary {
+  height: auto; overflow: visible; text-overflow: clip; white-space: normal;
+  line-height: 1.3;
+}
+.resultMain[data-state="configuring"] #principalSatelliteStat {
+  position: relative; width: 78px; overflow: hidden;
+  animation: none; letter-spacing: 0;
+}
+.configSatelliteDot {
+  position: absolute; top: calc(50% - 5px); left: calc(50% - 5px);
+  display: block; box-sizing: border-box; width: 10px; height: 10px;
+  border: 1.5px solid #777; border-radius: 50%;
+  background: #a9a9a9; animation: configSatellitePass 2.4s linear infinite;
+}
+.configSatelliteDot:nth-child(2) { animation-delay: -.8s; }
+.configSatelliteDot:nth-child(3) { animation-delay: -1.6s; }
+@keyframes configSatellitePass {
+  0% { background: #d5d5d5; border-color: #777; opacity: 0; transform: translateX(-34px) scale(.8); }
+  15%, 38% { background: #aaa; opacity: .7; }
+  50% { background: #f7d503; border-color: #4a4a4a; opacity: 1; transform: translateX(0) scale(1.25); }
+  62%, 85% { background: #aaa; opacity: .7; }
+  100% { background: #d5d5d5; border-color: #777; opacity: 0; transform: translateX(34px) scale(.8); }
+}
+.playbackDock #playBtn:disabled,
+.playbackDock #timelineSlider:disabled { opacity: .4; cursor: wait; }
+@media (prefers-reduced-motion: reduce) {
+  .configSatelliteDot { animation: none; }
+  .configSatelliteDot:nth-child(2) { background: #f7d503; border-color: #4a4a4a; opacity: 1; }
+  .scenarioCardInfo { transition: none; }
+}
+
+/* A portrait phone starts with the globe above a compact, scrollable instrument panel. */
+@media (max-width: 600px) {
+  #ui, #ui.is-detail-open {
+    top: auto; bottom: 112px; left: 12px;
+    width: calc(100vw - 24px);
+    height: min(43vh, 370px);
+    max-height: min(43vh, 370px);
+  }
+  #ui.is-detail-open { height: min(54vh, 460px); max-height: min(54vh, 460px); }
+  #ui .panelFront { padding: 14px 15px 16px; }
+  .panelHeading h1 { max-width: 260px; font-size: 21px; }
+  .panelHeading .introText { font-size: 11px; }
+  .scenarioCard { height: 67px; }
+  .scenarioCardGrid { gap: 6px; }
+  #panelToggleBtn {
+    top: -24px; left: calc(50% - 24px); width: 48px; height: 25px;
+  }
+  .panelToggleFace { border: 1px solid #d8d8d8; border-radius: 8px 8px 0 0; }
+  body.uiCollapsed #ui { transform: translateY(calc(100% - 8px)); }
+  body.idleMode #ui { transform: translateY(calc(100% + 86px)) scale(.96); }
+  .lowerControls, body.mapMode2D .lowerControls,
+  body:not(.mapMode2D) .lowerControls, body.uiCollapsed .lowerControls {
+    left: 12px; right: 12px; bottom: 10px;
+    width: calc(100vw - 24px); height: 92px;
+    padding: 10px 13px 9px;
+  }
+  body:not(.mapMode2D) #legend3D { row-gap: 4px; font-size: 10px; }
+  body:not(.mapMode2D) #ui { max-height: min(43vh, 370px); }
+  #cameraControls { top: max(10px, env(safe-area-inset-top)); right: 10px; gap: 7px; }
+  #cameraControls .cameraBtn, #cameraControls #viewToggleBtn,
+  #projectLink, .projectLinkIcon { width: 40px; height: 40px; }
+  #projectFlourishCanvas { width: 52px; height: 52px; }
+  #gtLogo { display: none; }
+  .glossaryPopover { max-height: calc(100vh - 20px); overflow-y: auto; }
+}
+
+@media (max-width: 600px) and (max-height: 700px) {
+  #ui, body:not(.mapMode2D) #ui { height: 40vh; max-height: 40vh; }
+  #ui.is-detail-open { height: 48vh; max-height: 48vh; }
+}

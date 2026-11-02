@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "run_name": "PREp-s002-d45-v6-g10-b170-k0-i4-261012a-a891",
+  "timestamp_utc": "2026-10-12T08:50:26.615593+00:00",
+  "result": {
+    "n_satellites": 200,
+    "status": "Time limit",
+    "obj_val": 200.0,
+    "obj_bound": 195.0,
+    "mip_gap_achieved": 0.025,
+    "node_count": 314398,
+    "time_modeling_s": 0.20099785400088876,
+    "time_optimization_s": 14400.024319284988
+  },
+  "cov": {
+    "detection_time_s": 45.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 125.0,
+    "burnout_velocity_km_s": 6.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "max_range_km": 566.4510816639729
+  },
+  "sim": {
+    "horizon_s": 253517.15835130014,
+    "dt_s": 119.97972472849037,
+    "use_j2": true,
+    "analysis_matrix_dtype": "uint8"
+  },
+  "targets": [
+    {
+      "name": "Imam Khomeini Spaceport",
+      "lat_deg": 35.23878672,
+      "lon_deg": 53.94957116
+    },
+    {
+      "name": "Shahroud Missile Test Site",
+      "lat_deg": 36.20108979,
+      "lon_deg": 55.33387388
+    }
+  ],
+  "countries": [],
+  "run_config": {
+    "run_name": "PREp-s002-d45-v6-g10-b170-k0-i4-261012a-a891",
+    "label": "IR_Principal",
+    "scenario": "PRE",
+    "is_principal_set": true,
+    "is_test_run": false,
+    "settings_key": "PREp-s002-d45-v6-g10-b170-k0-i4-a891",
+    "settings_hash": "a891",
+    "settings": {
+      "salvo_size": 2,
+      "detection_time_s": 45.0,
+      "burnout_velocity_km_s": 6.0,
+      "max_accel_g": 10.0,
+      "target_missile_burnout_time_s": 170.0,
+      "decision_time_s": 0.0,
+      "n_interceptors_per_sat": 4,
+      "intercept_alt_km": 200.0,
+      "min_elev_deg": 0.0,
+      "dt_target_s": 120.0,
+      "nd_repeat": 3,
+      "altitude_min_km": 200.0,
+      "anchor_lat_margin_deg": 0.0,
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "allow_reducible": true,
+      "useful_reach_deg": 5.0,
+      "scenario": "PRE",
+      "principal": true,
+      "test": false
+    },
+    "target_mode": "prespecified",
+    "target_country": null,
+    "target_shell_n_points": null,
+    "n_targets": 2,
+    "detection_time_s": 45.0,
+    "decision_time_s": 0.0,
+    "target_missile_burnout_time_s": 170.0,
+    "interceptor_engagement_time_s": 125.0,
+    "burnout_velocity_km_s": 6.0,
+    "max_accel_g": 10.0,
+    "intercept_alt_km": 200.0,
+    "min_elev_deg": 0.0,
+    "r_max_km": 566.4510816639729,
+    "salvo_size": 2,
+    "n_interceptors_per_sat": 4,
+    "r_required": 1,
+    "dt_target_s": 120.0,
+    "allow_reducible": true,
+    "useful_reach_deg": 5.0,
+    "orbit_model": "lee_j2",
+    "nd_repeat": 3,
+    "altitude_bounds_km": [
+      200.0,
+      766.4510816639729
+    ],
+    "anchor_lat_margin_deg": 0.0,
+    "anchor_alt_km": 282.1624062833098,
+    "anchor_inc_deg": 36.20108979,
+    "anchor_ratio": "47:3",
+    "T_r_s": 253637.13807602864,
+    "L": 2114,
+    "dt_s": 119.97972472849037,
+    "families": [
+      {
+        "N_P": 47,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "47:3",
+        "is_anchor": true,
+        "inc_deg": 36.20108979,
+        "alt_km": 282.1624062833098,
+        "a_km": 6660.2994062833095,
+        "reach_deg": 4.852876808145431,
+        "inc_floor_deg": 30.38590991185457,
+        "raan_interval_deg": 7.659574468085107,
+        "n_raan_offsets": 31,
+        "n_distinct_slots": 2114,
+        "satellites_selected": 200
+      },
+      {
+        "N_P": 46,
+        "N_D": 3,
+        "reducible": false,
+        "reduced_ratio": "46:3",
+        "is_anchor": false,
+        "inc_deg": 31.88184701308696,
+        "alt_km": 379.8504296139845,
+        "a_km": 6757.987429613984,
+        "reach_deg": 4.617091175317032,
+        "inc_floor_deg": 30.621695544682968,
+        "raan_interval_deg": 7.826086956521739,
+        "n_raan_offsets": 32,
+        "n_distinct_slots": 2114,
+        "satellites_selected": 0
+      }
+    ],
+    "seed_generation": {
+      "target_lat_min_deg": 35.23878672,
+      "target_lat_max_deg": 36.20108979,
+      "target_lat_span_deg": 0.9623030699999973,
+      "target_abs_lat_min_deg": 35.23878672,
+      "target_abs_lat_max_deg": 36.20108979,
+      "target_abs_lat_span_deg": 0.9623030699999973,
+      "n_target_points": 2,
+      "alt_min_km": 200.0,
+      "alt_max_km": 766.4510816639729,
+      "alt_max_rule": "intercept_alt + R_max",
+      "r_max_km": 566.4510816639729,
+      "anchor_inc_deg": 36.20108979,
+      "anchor_lat_margin_deg": 0.0,
+      "n_anchor_candidates": 5,
+      "n_unique_alt_inc_combos_all_candidates": 25,
+      "n_unique_alt_inc_combos_chosen_ladder": 5,
+      "n_unique_alt_inc_combos_kept": 2,
+      "n_combos_dropped": 3,
+      "n_anchor_rejected_out_of_bounds": 8,
+      "n_anchor_rejected_unconverged": 0,
+      "anchor_candidates": [
+        {
+          "N_P": 43,
+          "alt_km": 704.9487332321696,
+          "n_rungs_generated": 5,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 44,
+          "alt_km": 593.503442645304,
+          "n_rungs_generated": 5,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 45,
+          "alt_km": 486.0444431979686,
+          "n_rungs_generated": 5,
+          "n_members_kept": 0
+        },
+        {
+          "N_P": 46,
+          "alt_km": 382.33641357418946,
+          "n_rungs_generated": 5,
+          "n_members_kept": 1
+        },
+        {
+          "N_P": 47,
+          "alt_km": 282.1624062833098,
+          "n_rungs_generated": 5,
+          "n_members_kept": 1
+        }
+      ],
+      "n_families_kept": 2
+    },
+    "seed_filter": {
+      "raan_step_deg": 0.25,
+      "margin_multiplier": 5.0,
+      "trim_margin_multiplier": 2.0,
+      "max_seeds": 200,
+      "n_seeds_simulated": 63,
+      "n_seeds_dead": 0,
+      "n_seeds_live": 63,
+      "n_seeds_built": 1,
+      "n_seeds_trimmed": 0,
+      "n_seeds_kept": 1,
+      "build_worst_margin": 11.0,
+      "trim_worst_margin": 11.0,
+      "feasibility_margin_all_slots": 11.0,
+      "n_candidate_satellites": 2114,
+      "param_V_nnz": 48622,
+      "seed_sim_time_s": 18.458761670000968
+    },
+    "seeds_kept": [
+      {
+        "rank": 1,
+        "family": "47:3",
+        "inc_deg": 36.20108979,
+        "alt_km": 282.1624062833098,
+        "raan_deg": 0.0
+      }
+    ],
+    "solver": {
+      "mip_gap_target": 0.01,
+      "time_limit_s": 14400.0,
+      "stop_at_gap": null,
+      "mip_focus": 0,
+      "heuristics_frac": 0.05,
+      "solver_params": null,
+      "fixed_params": {
+        "CoverCuts": 2,
+        "Cuts": 2,
+        "Symmetry": 2,
+        "LPWarmStart": 1
+      },
+      "symmetry_break": false
+    },
+    "wall_time_s": 14419.754135030002
+  },
+  "provenance": {
+    "git_commit": "059f92436212d472a30234e0a276e9c0bc2d23e2",
+    "git_dirty": null,
+    "python": "3.11.17",
+    "libraries": {
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "numba": "0.68.0",
+      "gurobipy": "13.0.3",
+      "boto3": "1.43.111",
+      "pandas": "3.0.6",
+      "geopandas": "1.2.0",
+      "shapely": "2.2.0"
+    },
+    "host": "ip-10-128-229-122.ec2.internal",
+    "platform": "Linux-6.1.172-216.329.amzn2023.x86_64-x86_64-with-glibc2.41",
+    "cpu_count": 32,
+    "aws_batch_job_id": "fb524b6b-5276-4e39-94f6-8a99ebec47a4",
+    "image": null
+  }
+}

@@ -6,14 +6,6 @@ export const presenters = [
 
 export const exhibits = [
   {
-    id: "basics", number: 1, title: "Basics of Space-Based Interception",
-    presenterId: "fernando", status: "draft", module: "./animations/interception-basics.js",
-    states: ["Launch Site on Earth", "Ballistic Perspective Transition",
-      "Planned Ballistic Trajectory", "Terminal Defense Site",
-      "Terminal Interception", "Orbiting Satellites",
-      "Space-Based Interception", "Space Contact"]
-  },
-  {
     id: "geographic-input", number: 2, title: "Geography to SBI Constellation",
     presenterId: "fernando", status: "draft", module: "./animations/geographic-input.js",
     states: ["North Atlantic Region", "North Atlantic Sample Wave", "North Atlantic Constellation",
