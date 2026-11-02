@@ -93,6 +93,12 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
   const camera=new THREE.PerspectiveCamera(38,16/9,.01,1000);
   const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
   renderer.sortObjects=true; host.append(renderer.domElement);
+  const comparison=document.createElement("div");
+  comparison.className="geographic-comparison";
+  comparison.innerHTML='<div class="geographic-comparison-title"></div><div class="geographic-comparison-count"></div>';
+  host.append(comparison);
+  const comparisonTitle=comparison.querySelector(".geographic-comparison-title");
+  const comparisonCount=comparison.querySelector(".geographic-comparison-count");
   const root=new THREE.Group(); scene.add(root);
   const earth=makeEarth(geojson);root.add(earth);
   const cells=fibonacciShell(15000);
@@ -116,6 +122,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     const constellation=makeConstellation(modelData[key].satellites,
       ids.map(id=>cells[id]),modelData[key].coverage,
       modelData[key].simulation.useJ2,satelliteTexture,key);
+    constellation.orbits.renderOrder=9;
     root.add(region.group,sampling.global,sampling.selected,constellation.group);
     regions.push(region); samplings.push(sampling); constellations.push(constellation);
     selectedSets.push(ids);
@@ -134,6 +141,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
       orbit:values.orbit,satellite:values.satellite};
   }
   const [first,second]=views;
+  const smallCount=constellations[0].satelliteCount;
+  const largeCount=constellations[1].satelliteCount;
+  if(largeCount<=smallCount)throw new Error("The larger region must use more satellites in this comparison");
   const states=[
     state(first,{distance:first.introDistance,fill:[1,0],line:[1,0],draw:[1,0],target:[0,0],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
     state(first,{distance:first.samplingDistance,fill:[0,0],line:[0,0],draw:[0,0],target:[1,0],gold:[1,1],orbit:[0,0],satellite:[0,0]}),
@@ -158,6 +168,18 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
 
   function draw() {
     if(destroyed) return;
+    const isLarge=stateIndex>=4;
+    const countReady=(stateIndex===2||stateIndex===3||stateIndex===6)&&
+      current.satellite[isLarge?1:0]>=.995;
+    const title=isLarge?"Larger threat region":"Smaller threat region";
+    const count=isLarge?
+      `${largeCount} satellites · ${largeCount-smallCount} more than the smaller region (${smallCount})`:
+      `${smallCount} satellites`;
+    if(comparisonTitle.textContent!==title)comparisonTitle.textContent=title;
+    if(comparisonCount.textContent!==count)comparisonCount.textContent=count;
+    comparison.classList.toggle("has-count",countReady);
+    if(comparisonCount.getAttribute("aria-hidden")!==String(!countReady))
+      comparisonCount.setAttribute("aria-hidden",String(!countReady));
     // Give the geographic context extra definition only on pane 02.03.
     earth.children[1].material.color.setHex(stateIndex===2?0x6f6f6f:0xa8a8a8);
     earth.children[1].material.opacity=stateIndex===2?.78:.62;
@@ -180,7 +202,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     regions.forEach((region,index)=>{
       const fill=current.fill[index],line=current.line[index];
       region.group.visible=fill>.001||line>.001;
-      region.fill.material.opacity=.82*fill;
+      const orbitReveal=index===0?ease(.15,.85,current.orbit[0]):0;
+      region.fill.material.opacity=(.82-.35*orbitReveal)*fill;
       region.outline.material.opacity=line;
       region.outline.geometry.setDrawRange(0,
         Math.floor(region.outlineIndexCount*current.draw[index]/3)*3);
@@ -218,8 +241,8 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     constellations.forEach((constellation,index)=>{
       const orbit=current.orbit[index],satellite=current.satellite[index];
       constellation.group.visible=orbit>.001||satellite>.001;
-      constellation.orbits.material.color.setHex(0x484848);
-      constellation.orbits.material.opacity=.43*Math.min(1,orbit*3);
+      constellation.orbits.material.color.setHex(index===0?0x303030:0x484848);
+      constellation.orbits.material.opacity=(index===0?.82:.43)*Math.min(1,orbit*3);
       const progress=clamp(orbit,0,1);
       const whole=Math.floor(progress*constellation.planeCount);
       const fraction=progress*constellation.planeCount-whole;
@@ -461,7 +484,7 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
         materials.forEach(material=>material?.dispose());
       });
       globalTexture.dispose();satelliteTexture.dispose();renderer.dispose();
-      renderer.domElement.remove();
+      renderer.domElement.remove();comparison.remove();
     }
   };
 }
