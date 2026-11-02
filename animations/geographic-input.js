@@ -211,11 +211,9 @@ export async function createAnimation(host,{onStateChange=()=>{}}={}) {
     samplings.forEach((sampling,index)=>{
       sampling.global.visible=current.global>.005 && index===(stateIndex<4?0:1);
       sampling.global.material.opacity=.18*current.global;
-      const showLargeLaunchSites=index===1&&stateIndex===6;
-      sampling.selected.visible=showLargeLaunchSites&&current.satellite[1]>.01;
+      sampling.selected.visible=false;
       const uniforms=sampling.uniforms;
-      uniforms.opacity.value=showLargeLaunchSites?
-        .88*ease(0,.65,current.satellite[1]):0;
+      uniforms.opacity.value=0;
       uniforms.goldFraction.value=current.gold[index];
       uniforms.size.value=mix(40,goldSizes[index],current.gold[index]);
       uniforms.goldRadius.value=goldRadii[index];
